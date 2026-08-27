@@ -176,6 +176,7 @@ const getByMemberUserId = async (userId, { boardIds }) => {
     JOIN list ON card.list_id = list.id
     WHERE card_membership.user_id = $1
       AND card.is_closed = false
+      AND list.type NOT IN ('${List.Types.ARCHIVE}', '${List.Types.TRASH}')
   `;
 
   const boardInValues = boardIds.map((boardId) => {

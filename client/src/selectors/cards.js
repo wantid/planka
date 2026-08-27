@@ -11,6 +11,7 @@ import { selectPath } from './router';
 import { selectCurrentUserId } from './users';
 import { buildCustomFieldValueId } from '../models/CustomFieldValue';
 import { isLocalId } from '../utils/local-id';
+import { isListArchiveOrTrash } from '../utils/record-helpers';
 
 export const makeSelectCardById = () =>
   createSelector(
@@ -481,7 +482,13 @@ export const selectMyTaskCardIds = createSelector(
 
     const cardModels = Card.all()
       .toModelArray()
-      .filter((cardModel) => !cardModel.isClosed && cardModel.hasUserWithId(currentUserId));
+      .filter(
+        (cardModel) =>
+          !cardModel.isClosed &&
+          cardModel.hasUserWithId(currentUserId) &&
+          cardModel.list &&
+          !isListArchiveOrTrash(cardModel.list.ref),
+      );
 
     const withUnread = [];
     const withoutUnread = [];
