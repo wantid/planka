@@ -1,13 +1,7 @@
 name: Build and Push Docker Nightly Image
 
 on:
-  push:
-    paths-ignore:
-      - '.github/**'
-      - 'charts/**'
-      - 'docker-*.yml'
-      - '*.md'
-    branches: [master]
+  # Upstream Planka uses a self-hosted runner; disabled for this fork.
   workflow_dispatch:
 
 jobs:

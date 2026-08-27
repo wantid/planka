@@ -1,8 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  release:
-    types: [created]
+  # Upstream Planka uses a self-hosted runner; releases are built via build-and-push-fork-image.yml.
+  workflow_dispatch:
 
 jobs:
   build-and-push-docker-image:
