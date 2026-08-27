@@ -16,12 +16,14 @@ import { BoardViews } from '../../../constants/Enums';
 import Home from '../Home';
 import GhostError from '../GhostError';
 import Board from '../../boards/Board';
+import ProjectTasksDashboard from '../../projects/Project/ProjectTasksDashboard';
 import AddBoardStep from '../../boards/AddBoardStep';
 
 import styles from './Static.module.scss';
 
 const Static = React.memo(() => {
   const { cardId, projectId } = useSelector(selectors.selectPath);
+  const isProjectTasksView = useSelector(selectors.selectIsProjectTasksView);
   const board = useSelector(selectors.selectCurrentBoard);
   const isFetching = useSelector(selectors.selectIsContentFetching);
   const isFavoritesActive = useSelector(selectors.selectIsFavoritesActiveForCurrentUser);
@@ -43,12 +45,19 @@ const Static = React.memo(() => {
   let wrapperClassNames;
   let contentNode;
 
-  if (isFetching) {
-    wrapperClassNames = [styles.wrapperLoader];
-    contentNode = <Loader active size="huge" />;
-  } else if (projectId === undefined) {
+  if (projectId === undefined) {
     wrapperClassNames = [isFavoritesActive && styles.wrapperWithFavorites, styles.wrapperVertical];
     contentNode = <Home />;
+  } else if (isProjectTasksView) {
+    wrapperClassNames = [
+      isFavoritesActive ? styles.wrapperProjectWithFavorites : styles.wrapperProject,
+      styles.wrapperVertical,
+    ];
+
+    contentNode = <ProjectTasksDashboard />;
+  } else if (isFetching) {
+    wrapperClassNames = [styles.wrapperLoader];
+    contentNode = <Loader active size="huge" />;
   } else if (cardId === null) {
     wrapperClassNames = [isFavoritesActive && styles.wrapperWithFavorites, styles.wrapperFlex];
     contentNode = <GhostError message="common.cardNotFound" />;
@@ -86,6 +95,13 @@ const Static = React.memo(() => {
       </div>
     );
   } else if (board.isFetching) {
+    wrapperClassNames = [
+      styles.wrapperLoader,
+      isFavoritesActive ? styles.wrapperProjectWithFavorites : styles.wrapperProject,
+    ];
+
+    contentNode = <Loader active size="big" />;
+  } else if (board.view == null) {
     wrapperClassNames = [
       styles.wrapperLoader,
       isFavoritesActive ? styles.wrapperProjectWithFavorites : styles.wrapperProject,

@@ -8,6 +8,7 @@ import { push } from '../../../lib/redux-router';
 
 import { logout } from './core';
 import request from '../request';
+import { fetchCardAndBoard } from '../requests/boards';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
@@ -15,6 +16,18 @@ import { getAccessToken } from '../../../utils/access-token-storage';
 import mergeRecords from '../../../utils/merge-records';
 import ActionTypes from '../../../constants/ActionTypes';
 import Paths from '../../../constants/Paths';
+
+function* resetStuckBoardFetch(boardId) {
+  if (!boardId) {
+    return;
+  }
+
+  const boardModel = yield select(selectors.selectBoardById, boardId);
+
+  if (boardModel && boardModel.isFetching) {
+    yield put(actions.fetchBoard.failure(boardId));
+  }
+}
 
 export function* goTo(pathname) {
   yield put(push(pathname));
@@ -51,6 +64,10 @@ export function* handleLocationChange() {
     return;
   }
 
+  const pathnameAtStart = pathsMatch.pathname;
+  let contentFetchStarted = false;
+  let contentFetchGeneration = null;
+
   switch (pathsMatch.pattern.path) {
     case Paths.LOGIN:
       yield call(goToRoot);
@@ -64,8 +81,6 @@ export function* handleLocationChange() {
   if (isInitializing) {
     yield take(ActionTypes.CORE_INITIALIZE);
   }
-
-  let currentBoard = yield select(selectors.selectCurrentBoard);
 
   let currentBoardId = null;
   let currentCardId = null;
@@ -97,26 +112,48 @@ export function* handleLocationChange() {
   let customFieldValues2;
   let notificationsToDelete;
 
-  switch (pathsMatch.pattern.path) {
-    case Paths.ROOT:
-      isEditModeEnabled = false;
+  try {
+    switch (pathsMatch.pattern.path) {
+      case Paths.ROOT: {
+        isEditModeEnabled = false;
 
-      break;
-    case Paths.PROJECTS: {
-      const boardIds = yield select(selectors.selectBoardIdsForCurrentProject);
+        const { boardId } = yield select(({ core }) => ({
+          boardId: core.boardId,
+        }));
 
-      if (boardIds && boardIds.length === 0) {
-        isEditModeEnabled = true;
+        yield call(resetStuckBoardFetch, boardId);
+
+        break;
       }
+      case Paths.PROJECTS: {
+        const boardIds = yield select(selectors.selectBoardIdsForCurrentProject);
 
-      break;
-    }
-    case Paths.BOARDS:
-      if (currentBoard) {
-        ({ id: currentBoardId } = currentBoard);
+        if (boardIds && boardIds.length === 0) {
+          isEditModeEnabled = true;
+        }
 
-        if (currentBoard.isFetching === null) {
-          yield put(actions.handleLocationChange.fetchBoard(currentBoard.id));
+        const { boardId } = yield select(({ core }) => ({
+          boardId: core.boardId,
+        }));
+
+        yield call(resetStuckBoardFetch, boardId);
+
+        break;
+      }
+      case Paths.BOARDS: {
+        ({ id: currentBoardId } = pathsMatch.params);
+
+        const boardModelForFetch = yield select(selectors.selectBoardById, currentBoardId);
+        const shouldFetchBoard = !boardModelForFetch || boardModelForFetch.view == null;
+
+        if (shouldFetchBoard) {
+          yield put(actions.handleLocationChange.fetchContent());
+          contentFetchStarted = true;
+          contentFetchGeneration = yield select(({ core }) => core.contentFetchGeneration);
+
+          if (!boardModelForFetch || boardModelForFetch.isFetching === null) {
+            yield put(actions.handleLocationChange.fetchBoard(currentBoardId));
+          }
 
           try {
             ({
@@ -137,121 +174,137 @@ export function* handleLocationChange() {
                 customFields: customFields1,
                 customFieldValues: customFieldValues1,
               },
-            } = yield call(request, api.getBoard, currentBoard.id, true));
+            } = yield call(request, api.getBoard, currentBoardId, true));
           } catch {
-            /* empty */
+            yield put(actions.fetchBoard.failure(currentBoardId));
           }
         }
+
+        break;
       }
+      case Paths.CARDS: {
+        ({ cardId: currentCardId, boardId: currentBoardId } = yield select(selectors.selectPath));
 
-      break;
-    case Paths.CARDS:
-      ({ cardId: currentCardId, boardId: currentBoardId } = yield select(selectors.selectPath));
+        const boardModelForFetch = currentBoardId
+          ? yield select(selectors.selectBoardById, currentBoardId)
+          : null;
+        const needsBoardFetch = !boardModelForFetch || boardModelForFetch.view == null;
 
-      if (!currentCardId) {
-        yield put(actions.handleLocationChange.fetchContent());
-
-        try {
-          ({
-            item: card,
-            included: {
-              users: users1,
-              cardMemberships: cardMemberships1,
-              cardLabels: cardLabels1,
-              taskLists: taskLists1,
-              tasks: tasks1,
-              attachments: attachments1,
-              customFieldGroups: customFieldGroups1,
-              customFields: customFields1,
-              customFieldValues: customFieldValues1,
-            },
-          } = yield call(request, api.getCard, pathsMatch.params.id));
-        } catch {
-          /* empty */
+        if (needsBoardFetch) {
+          yield put(actions.handleLocationChange.fetchContent());
+          contentFetchStarted = true;
+          contentFetchGeneration = yield select(({ core }) => core.contentFetchGeneration);
         }
 
+        ({
+          card,
+          board,
+          users1,
+          users2,
+          projects,
+          boardMemberships,
+          labels,
+          lists,
+          cards,
+          cardMemberships1,
+          cardMemberships2,
+          cardLabels1,
+          cardLabels2,
+          taskLists1,
+          taskLists2,
+          tasks1,
+          tasks2,
+          attachments1,
+          attachments2,
+          customFieldGroups1,
+          customFieldGroups2,
+          customFields1,
+          customFields2,
+          customFieldValues1,
+          customFieldValues2,
+        } = yield call(fetchCardAndBoard, pathsMatch.params.id, {
+          skipBoardFetch: !needsBoardFetch,
+        }));
+
         if (card) {
-          ({ id: currentCardId } = card);
+          ({ id: currentCardId, boardId: currentBoardId } = card);
+        }
 
-          currentBoard = yield select(selectors.selectBoardById, card.boardId);
+        if (card && needsBoardFetch && !board) {
+          yield put(actions.fetchBoard.failure(card.boardId));
+        }
 
-          if (currentBoard) {
-            ({ id: currentBoardId } = currentBoard);
+        if (currentCardId) {
+          const notificationIds = yield select(
+            selectors.selectNotificationIdsByCardId,
+            currentCardId,
+          );
 
-            if (currentBoard.isFetching === null) {
-              try {
-                ({
-                  item: board,
-                  included: {
-                    projects,
-                    boardMemberships,
-                    labels,
-                    lists,
-                    cards,
-                    users: users2,
-                    cardMemberships: cardMemberships2,
-                    cardLabels: cardLabels2,
-                    taskLists: taskLists2,
-                    tasks: tasks2,
-                    attachments: attachments2,
-                    customFieldGroups: customFieldGroups2,
-                    customFields: customFields2,
-                    customFieldValues: customFieldValues2,
-                  },
-                } = yield call(request, api.getBoard, card.boardId, true));
-              } catch {
-                /* empty */
-              }
+          if (notificationIds.length > 0) {
+            try {
+              ({
+                included: { notifications: notificationsToDelete },
+              } = yield call(request, api.readCardNotifications, currentCardId));
+            } catch {
+              /* empty */
             }
           }
         }
+
+        break;
+      }
+      default:
+    }
+
+    const pathsMatchAtEnd = yield select(selectors.selectPathsMatch);
+
+    if (
+      !pathsMatchAtEnd ||
+      pathsMatchAtEnd.pathname !== pathnameAtStart ||
+      pathsMatchAtEnd.pattern.path !== pathsMatch.pattern.path
+    ) {
+      if (contentFetchStarted && contentFetchGeneration !== null) {
+        yield put(actions.handleLocationChange.cancelContentFetch(contentFetchGeneration));
+      } else if (yield select(({ core }) => core.isContentFetching)) {
+        const generation = yield select(({ core }) => core.contentFetchGeneration);
+        yield put(actions.handleLocationChange.cancelContentFetch(generation));
       }
 
-      if (currentCardId) {
-        const notificationIds = yield select(
-          selectors.selectNotificationIdsByCardId,
-          currentCardId,
-        );
+      return;
+    }
 
-        if (notificationIds.length > 0) {
-          try {
-            ({
-              included: { notifications: notificationsToDelete },
-            } = yield call(request, api.readCardNotifications, currentCardId));
-          } catch {
-            /* empty */
-          }
-        }
-      }
-
-      break;
-    default:
+    yield put(
+      actions.handleLocationChange(
+        pathsMatch.pathname,
+        currentBoardId,
+        currentCardId,
+        isEditModeEnabled,
+        board,
+        mergeRecords(users1, users2),
+        projects,
+        boardMemberships,
+        labels,
+        lists,
+        mergeRecords(card && [card], cards),
+        mergeRecords(cardMemberships1, cardMemberships2),
+        mergeRecords(cardLabels1, cardLabels2),
+        mergeRecords(taskLists1, taskLists2),
+        mergeRecords(tasks1, tasks2),
+        mergeRecords(attachments1, attachments2),
+        mergeRecords(customFieldGroups1, customFieldGroups2),
+        mergeRecords(customFields1, customFields2),
+        mergeRecords(customFieldValues1, customFieldValues2),
+        notificationsToDelete,
+      ),
+    );
+  } catch {
+    if (contentFetchStarted && contentFetchGeneration !== null) {
+      yield put(actions.handleLocationChange.cancelContentFetch(contentFetchGeneration));
+    } else if (yield select(({ core }) => core.isContentFetching)) {
+      const generation = yield select(({ core }) => core.contentFetchGeneration);
+      yield put(actions.handleLocationChange.cancelContentFetch(generation));
+    }
   }
-
-  yield put(
-    actions.handleLocationChange(
-      pathsMatch.pathname,
-      currentBoardId,
-      currentCardId,
-      isEditModeEnabled,
-      board,
-      mergeRecords(users1, users2),
-      projects,
-      boardMemberships,
-      labels,
-      lists,
-      mergeRecords(card && [card], cards),
-      mergeRecords(cardMemberships1, cardMemberships2),
-      mergeRecords(cardLabels1, cardLabels2),
-      mergeRecords(taskLists1, taskLists2),
-      mergeRecords(tasks1, tasks2),
-      mergeRecords(attachments1, attachments2),
-      mergeRecords(customFieldGroups1, customFieldGroups2),
-      mergeRecords(customFields1, customFields2),
-      mergeRecords(customFieldValues1, customFieldValues2),
-      notificationsToDelete,
-    ),
-  );
 }
 
 export default {

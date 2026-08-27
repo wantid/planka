@@ -57,6 +57,13 @@ handleLocationChange.fetchContent = () => ({
   payload: {},
 });
 
+handleLocationChange.cancelContentFetch = (generation) => ({
+  type: ActionTypes.LOCATION_CHANGE_HANDLE__CONTENT_FETCH_CANCEL,
+  payload: {
+    generation,
+  },
+});
+
 handleLocationChange.fetchBoard = (id) => ({
   type: ActionTypes.LOCATION_CHANGE_HANDLE__BOARD_FETCH,
   payload: {

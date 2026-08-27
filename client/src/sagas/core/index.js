@@ -3,12 +3,14 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-import { apply, fork, take } from 'redux-saga/effects';
+import { apply, fork, put, take } from 'redux-saga/effects';
 
 import watchers from './watchers';
 import services from './services';
 import runWatchers from '../run-watchers';
 import { socket } from '../../api';
+import history from '../../history';
+import { handleLocationChange as dispatchRouterLocationChange } from '../../lib/redux-router/actions';
 import ActionTypes from '../../constants/ActionTypes';
 import Paths from '../../constants/Paths';
 
@@ -17,6 +19,7 @@ export default function* coreSaga() {
 
   yield apply(socket, socket.connect);
   yield fork(services.initializeCore);
+  yield put(dispatchRouterLocationChange(history.location, history.action));
   yield fork(services.autoLogout);
 
   yield take(ActionTypes.LOGOUT);

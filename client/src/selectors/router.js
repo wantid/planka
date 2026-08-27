@@ -69,10 +69,12 @@ export const selectPath = createReduxOrmSelector(
             };
           }
 
+          const boardModel = Board.withId(cardModel.boardId);
+
           return {
             cardId: cardModel.id,
             boardId: cardModel.boardId,
-            projectId: cardModel.board.projectId,
+            projectId: boardModel ? boardModel.projectId : null,
           };
         }
         default:
@@ -83,8 +85,14 @@ export const selectPath = createReduxOrmSelector(
   },
 );
 
+export const selectIsProjectTasksView = createReselectSelector(
+  selectPathsMatch,
+  (pathsMatch) => pathsMatch?.pattern.path === Paths.PROJECTS,
+);
+
 export default {
   selectPathname,
   selectPathsMatch,
   selectPath,
+  selectIsProjectTasksView,
 };

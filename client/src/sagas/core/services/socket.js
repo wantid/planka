@@ -10,13 +10,20 @@ import requests from '../requests';
 import selectors from '../../../selectors';
 import actions from '../../../actions';
 import api from '../../../api';
+import Paths from '../../../constants/Paths';
 
 export function* handleSocketDisconnect() {
   yield put(actions.handleSocketDisconnect());
 }
 
 export function* handleSocketReconnect() {
-  const { boardId } = yield select(selectors.selectPath);
+  const pathsMatch = yield select(selectors.selectPathsMatch);
+  let { boardId } = yield select(selectors.selectPath);
+
+  if (!boardId && pathsMatch?.pattern.path === Paths.BOARDS) {
+    ({ id: boardId } = pathsMatch.params);
+  }
+
   const currentUserId = yield select(selectors.selectCurrentUserId);
 
   yield put(actions.handleSocketReconnect.fetchCore(currentUserId, boardId));

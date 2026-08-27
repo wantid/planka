@@ -12,6 +12,7 @@ import { HomeViews, ProjectOrders } from '../constants/Enums';
 
 const initialState = {
   isContentFetching: false,
+  contentFetchGeneration: 0,
   isLogouting: false,
   isFavoritesEnabled: false,
   isEditModeEnabled: false,
@@ -33,6 +34,11 @@ const initialState = {
 export default (state = initialState, { type, payload }) => {
   switch (type) {
     case LOCATION_CHANGE_HANDLE:
+      return {
+        ...state,
+        modal: null,
+        isContentFetching: false,
+      };
     case ActionTypes.MODAL_CLOSE:
       return {
         ...state,
@@ -72,7 +78,17 @@ export default (state = initialState, { type, payload }) => {
     case ActionTypes.LOCATION_CHANGE_HANDLE__CONTENT_FETCH:
       return {
         ...state,
+        contentFetchGeneration: state.contentFetchGeneration + 1,
         isContentFetching: true,
+      };
+    case ActionTypes.LOCATION_CHANGE_HANDLE__CONTENT_FETCH_CANCEL:
+      if (payload.generation !== state.contentFetchGeneration) {
+        return state;
+      }
+
+      return {
+        ...state,
+        isContentFetching: false,
       };
     case ActionTypes.SOCKET_RECONNECT_HANDLE:
     case ActionTypes.USER_UPDATE_HANDLE:

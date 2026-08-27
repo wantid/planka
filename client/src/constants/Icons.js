@@ -40,6 +40,8 @@ export const ProjectGroupIcons = {
   [ProjectGroups.OTHERS]: 'user secret',
 };
 
+export const MyTasksIcon = 'check square outline';
+
 export const ProjectTypeIcons = {
   [ProjectTypes.PRIVATE]: 'privacy',
   [ProjectTypes.SHARED]: 'group',

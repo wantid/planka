@@ -135,44 +135,28 @@ export const makeSelectShownOnFrontOfCardCustomFieldValueIdsByCardId = () =>
         return cardModel;
       }
 
-      return [
-        ...cardModel.board
-          .getCustomFieldGroupsQuerySet()
-          .toModelArray()
-          .flatMap((customFieldGroupModel) =>
-            customFieldGroupModel
-              .getShownOnFrontOfCardCustomFieldsModelArray()
-              .flatMap((customFieldModel) => {
-                const customFieldValue = CustomFieldValue.withId(
-                  buildCustomFieldValueId({
-                    cardId: id,
-                    customFieldGroupId: customFieldGroupModel.id,
-                    customFieldId: customFieldModel.id,
-                  }),
-                );
+      const customFieldGroupModelsById = new Map(
+        [
+          ...cardModel.board.getCustomFieldGroupsQuerySet().toModelArray(),
+          ...cardModel.getCustomFieldGroupsQuerySet().toModelArray(),
+        ].map((customFieldGroupModel) => [customFieldGroupModel.id, customFieldGroupModel]),
+      );
 
-                return customFieldValue ? customFieldValue.id : [];
+      return [...customFieldGroupModelsById.values()].flatMap((customFieldGroupModel) =>
+        customFieldGroupModel
+          .getShownOnFrontOfCardCustomFieldsModelArray()
+          .flatMap((customFieldModel) => {
+            const customFieldValue = CustomFieldValue.withId(
+              buildCustomFieldValueId({
+                cardId: id,
+                customFieldGroupId: customFieldGroupModel.id,
+                customFieldId: customFieldModel.id,
               }),
-          ),
-        ...cardModel
-          .getCustomFieldGroupsQuerySet()
-          .toModelArray()
-          .flatMap((customFieldGroupModel) =>
-            customFieldGroupModel
-              .getShownOnFrontOfCardCustomFieldsModelArray()
-              .flatMap((customFieldModel) => {
-                const customFieldValue = CustomFieldValue.withId(
-                  buildCustomFieldValueId({
-                    cardId: id,
-                    customFieldGroupId: customFieldGroupModel.id,
-                    customFieldId: customFieldModel.id,
-                  }),
-                );
+            );
 
-                return customFieldValue ? customFieldValue.id : [];
-              }),
-          ),
-      ];
+            return customFieldValue ? customFieldValue.id : [];
+          }),
+      );
     },
   );
 
@@ -462,6 +446,151 @@ export const selectIsCurrentUserInCurrentCard = createSelector(
   },
 );
 
+const compareMyTaskCards = (cardModelA, cardModelB) => {
+  const dueDateA = cardModelA.dueDate;
+  const dueDateB = cardModelB.dueDate;
+
+  if (!dueDateA && !dueDateB) {
+    return cardModelA.name.localeCompare(cardModelB.name);
+  }
+
+  if (!dueDateA) {
+    return 1;
+  }
+
+  if (!dueDateB) {
+    return -1;
+  }
+
+  const dueDateDiff = dueDateA.getTime() - dueDateB.getTime();
+
+  if (dueDateDiff !== 0) {
+    return dueDateDiff;
+  }
+
+  return cardModelA.name.localeCompare(cardModelB.name);
+};
+
+export const selectMyTaskCardIds = createSelector(
+  orm,
+  (state) => selectCurrentUserId(state),
+  ({ Card }, currentUserId) => {
+    if (!currentUserId) {
+      return [];
+    }
+
+    const cardModels = Card.all()
+      .toModelArray()
+      .filter((cardModel) => !cardModel.isClosed && cardModel.hasUserWithId(currentUserId));
+
+    const withUnread = [];
+    const withoutUnread = [];
+
+    cardModels.forEach((cardModel) => {
+      if (cardModel.getUnreadNotificationsQuerySet().count() > 0) {
+        withUnread.push(cardModel);
+      } else {
+        withoutUnread.push(cardModel);
+      }
+    });
+
+    withUnread.sort(compareMyTaskCards);
+    withoutUnread.sort(compareMyTaskCards);
+
+    return [...withUnread, ...withoutUnread].map((cardModel) => cardModel.id);
+  },
+);
+
+export const selectMyTaskProjectGroups = createSelector(
+  orm,
+  selectMyTaskCardIds,
+  ({ Card, Board, Project }, cardIds) => {
+    const groups = [];
+
+    cardIds.forEach((cardId) => {
+      const cardModel = Card.withId(cardId);
+
+      if (!cardModel) {
+        return;
+      }
+
+      const boardModel = Board.withId(cardModel.boardId);
+
+      if (!boardModel) {
+        return;
+      }
+
+      const projectModel = Project.withId(boardModel.projectId);
+
+      if (!projectModel) {
+        return;
+      }
+
+      let group = groups.find(({ projectId }) => projectId === projectModel.id);
+
+      if (!group) {
+        group = {
+          projectId: projectModel.id,
+          cardIds: [],
+        };
+
+        groups.push(group);
+      }
+
+      group.cardIds.push(cardId);
+    });
+
+    return groups;
+  },
+);
+
+export const selectMyTaskBoardGroupsForCurrentProject = createSelector(
+  orm,
+  selectMyTaskCardIds,
+  (state) => selectPath(state).projectId,
+  ({ Card, Board }, cardIds, projectId) => {
+    if (!projectId) {
+      return [];
+    }
+
+    const groups = [];
+
+    cardIds.forEach((cardId) => {
+      const cardModel = Card.withId(cardId);
+
+      if (!cardModel) {
+        return;
+      }
+
+      const boardModel = Board.withId(cardModel.boardId);
+
+      if (!boardModel || boardModel.projectId !== projectId) {
+        return;
+      }
+
+      let group = groups.find(({ boardId }) => boardId === boardModel.id);
+
+      if (!group) {
+        group = {
+          boardId: boardModel.id,
+          cardIds: [],
+        };
+
+        groups.push(group);
+      }
+
+      group.cardIds.push(cardId);
+    });
+
+    return groups.sort((groupA, groupB) => {
+      const boardModelA = Board.withId(groupA.boardId);
+      const boardModelB = Board.withId(groupB.boardId);
+
+      return (boardModelA?.position ?? 0) - (boardModelB?.position ?? 0);
+    });
+  },
+);
+
 export default {
   makeSelectCardById,
   selectCardById,
@@ -495,4 +624,7 @@ export default {
   selectCommentIdsForCurrentCard,
   selectActivityIdsForCurrentCard,
   selectIsCurrentUserInCurrentCard,
+  selectMyTaskCardIds,
+  selectMyTaskProjectGroups,
+  selectMyTaskBoardGroupsForCurrentProject,
 };

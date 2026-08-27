@@ -12,6 +12,24 @@ import ActionTypes from '../constants/ActionTypes';
 import Config from '../constants/Config';
 import { BoardContexts, BoardViews } from '../constants/Enums';
 
+const upsertBoardRecord = (Board, board) => {
+  const boardModel = Board.withId(board.id);
+
+  if (boardModel && boardModel.view != null) {
+    Board.upsert({
+      ...board,
+      context: boardModel.context,
+      view: boardModel.view,
+      search: boardModel.search,
+      isFetching: boardModel.isFetching === true,
+    });
+
+    return;
+  }
+
+  Board.upsert(board);
+};
+
 const prepareFetchedBoard = (board) => ({
   ...board,
   isFetching: false,
@@ -74,12 +92,22 @@ export default class extends BaseModel {
 
         break;
       case ActionTypes.LOCATION_CHANGE_HANDLE__BOARD_FETCH:
-      case ActionTypes.BOARD_FETCH:
-        Board.withId(payload.id).update({
-          isFetching: true,
-        });
+      case ActionTypes.BOARD_FETCH: {
+        const boardModel = Board.withId(payload.id);
+
+        if (boardModel) {
+          boardModel.update({
+            isFetching: true,
+          });
+        } else {
+          Board.upsert({
+            id: payload.id,
+            isFetching: true,
+          });
+        }
 
         break;
+      }
       case ActionTypes.SOCKET_RECONNECT_HANDLE: {
         const boardIds = payload.boards.map(({ id }) => id);
 
@@ -102,23 +130,25 @@ export default class extends BaseModel {
         }
 
         payload.boards.forEach((board) => {
-          Board.upsert(board);
+          upsertBoardRecord(Board, board);
         });
 
         break;
       }
       case ActionTypes.SOCKET_RECONNECT_HANDLE__CORE_FETCH:
-        Board.all()
-          .toModelArray()
-          .forEach((boardModel) => {
-            if (boardModel.id !== payload.currentBoardId) {
-              boardModel.update({
-                isFetching: null,
-              });
+        if (payload.currentBoardId) {
+          Board.all()
+            .toModelArray()
+            .forEach((boardModel) => {
+              if (boardModel.id !== payload.currentBoardId) {
+                boardModel.update({
+                  isFetching: null,
+                });
 
-              boardModel.deleteRelated(payload.currentUserId, true);
-            }
-          });
+                boardModel.deleteRelated(payload.currentUserId, true);
+              }
+            });
+        }
 
         break;
       case ActionTypes.CORE_INITIALIZE:
@@ -127,7 +157,7 @@ export default class extends BaseModel {
         }
 
         payload.boards.forEach((board) => {
-          Board.upsert(board);
+          upsertBoardRecord(Board, board);
         });
 
         break;
@@ -146,7 +176,7 @@ export default class extends BaseModel {
 
         if (payload.boards) {
           payload.boards.forEach((board) => {
-            Board.upsert(board);
+            upsertBoardRecord(Board, board);
           });
         }
 
@@ -206,12 +236,17 @@ export default class extends BaseModel {
         Board.upsert(prepareFetchedBoard(payload.board));
 
         break;
-      case ActionTypes.BOARD_FETCH__FAILURE:
-        Board.withId(payload.id).update({
-          isFetching: null,
-        });
+      case ActionTypes.BOARD_FETCH__FAILURE: {
+        const boardModel = Board.withId(payload.id);
+
+        if (boardModel) {
+          boardModel.update({
+            isFetching: false,
+          });
+        }
 
         break;
+      }
       case ActionTypes.BOARD_UPDATE:
         Board.withId(payload.id).update(payload.data);
 

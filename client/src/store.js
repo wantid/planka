@@ -25,6 +25,7 @@ if (import.meta.env.DEV) {
   }
 }
 
-export default createStore(rootReducer, compose(applyMiddleware(...middlewares)));
+const store = createStore(rootReducer, compose(applyMiddleware(...middlewares)));
 
+export default store;
 sagaMiddleware.run(rootSaga);

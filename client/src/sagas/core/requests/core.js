@@ -45,6 +45,38 @@ export function* fetchCore() {
     },
   } = yield call(request, api.getProjects);
 
+  let myCards = [];
+  let myProjects = [];
+  let myBoards = [];
+  let myLists = [];
+  let myLabels = [];
+  let myCardLabels = [];
+  let myCardMemberships = [];
+  let myUsers = [];
+  let myCustomFieldGroups = [];
+  let myCustomFields = [];
+  let myCustomFieldValues = [];
+
+  try {
+    ({
+      items: myCards,
+      included: {
+        projects: myProjects,
+        boards: myBoards,
+        lists: myLists,
+        labels: myLabels,
+        cardLabels: myCardLabels,
+        cardMemberships: myCardMemberships,
+        users: myUsers,
+        customFieldGroups: myCustomFieldGroups,
+        customFields: myCustomFields,
+        customFieldValues: myCustomFieldValues,
+      },
+    } = yield call(request, api.getMyCards));
+  } catch {
+    /* empty */
+  }
+
   let board;
   let card;
   let users3;
@@ -115,22 +147,22 @@ export function* fetchCore() {
     projectManagers,
     backgroundImages,
     baseCustomFieldGroups,
-    boards,
-    labels,
-    lists,
-    cardMemberships,
-    cardLabels,
+    boards: mergeRecords(boards, myBoards),
+    labels: mergeRecords(labels, myLabels),
+    lists: mergeRecords(lists, myLists),
+    cardMemberships: mergeRecords(cardMemberships, myCardMemberships),
+    cardLabels: mergeRecords(cardLabels, myCardLabels),
     taskLists,
     tasks,
     attachments,
-    customFieldGroups,
-    customFieldValues,
+    customFieldGroups: mergeRecords(customFieldGroups, myCustomFieldGroups),
+    customFieldValues: mergeRecords(customFieldValues, myCustomFieldValues),
     notifications,
-    users: mergeRecords(users1, users2, users3, users4),
-    projects: mergeRecords(projects1, projects2),
+    users: mergeRecords(users1, users2, users3, users4, myUsers),
+    projects: mergeRecords(projects1, projects2, myProjects),
     boardMemberships: mergeRecords(boardMemberships1, boardMemberships2),
-    cards: mergeRecords(card && [card], cards1),
-    customFields: mergeRecords(customFields1, customFields2),
+    cards: mergeRecords(card && [card], cards1, myCards),
+    customFields: mergeRecords(customFields1, customFields2, myCustomFields),
     notificationServices: mergeRecords(notificationServices1, notificationServices2),
   };
 }

@@ -13,12 +13,14 @@ import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import DroppableTypes from '../../../constants/DroppableTypes';
 import Item from './Item';
+import TasksTab from './TasksTab';
 import AddBoardStep from '../AddBoardStep';
 
 import styles from './Boards.module.scss';
 import globalStyles from '../../../styles.module.scss';
 
 const Boards = React.memo(() => {
+  const projectId = useSelector((state) => selectors.selectPath(state).projectId);
   const boardIds = useSelector(selectors.selectBoardIdsForCurrentProject);
 
   const canAdd = useSelector((state) => {
@@ -69,6 +71,7 @@ const Boards = React.memo(() => {
             {({ innerRef, droppableProps, placeholder }) => (
               // eslint-disable-next-line react/jsx-props-no-spreading
               <div {...droppableProps} ref={innerRef} className={styles.tabs}>
+                {projectId && <TasksTab projectId={projectId} />}
                 {boardIds.map((boardId, index) => (
                   <Item key={boardId} id={boardId} index={index} />
                 ))}

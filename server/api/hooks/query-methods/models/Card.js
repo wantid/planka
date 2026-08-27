@@ -163,6 +163,32 @@ const getByListIds = async (listIds, { sort = ['position', 'id'] } = {}) =>
     { sort },
   );
 
+const getByMemberUserId = async (userId, { boardIds }) => {
+  if (!boardIds || boardIds.length === 0) {
+    return [];
+  }
+
+  const queryValues = [userId];
+  let query = `
+    SELECT DISTINCT card.*
+    FROM card
+    JOIN card_membership ON card.id = card_membership.card_id
+    JOIN list ON card.list_id = list.id
+    WHERE card_membership.user_id = $1
+      AND card.is_closed = false
+  `;
+
+  const boardInValues = boardIds.map((boardId) => {
+    queryValues.push(boardId);
+    return `$${queryValues.length}`;
+  });
+
+  query += ` AND list.board_id IN (${boardInValues.join(', ')})`;
+
+  const queryResult = await sails.sendNativeQuery(query, queryValues);
+  return queryResult.rows.map((row) => transformRowToModel(row));
+};
+
 const getOneById = (id, { listId } = {}) => {
   const criteria = {
     id,
@@ -239,6 +265,7 @@ module.exports = {
   getByListId,
   getByEndlessListId,
   getByListIds,
+  getByMemberUserId,
   getOneById,
   update,
   updateOne,

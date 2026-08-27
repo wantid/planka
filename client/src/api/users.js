@@ -5,6 +5,7 @@
 
 import http from './http';
 import socket from './socket';
+import { transformCard } from './cards';
 
 /* Actions */
 
@@ -20,6 +21,12 @@ const createUser = (data, headers) => socket.post('/users', data, headers);
 
 const getCurrentUser = (subscribe, headers) =>
   socket.get(`/users/me${subscribe ? '?subscribe=true' : ''}`, undefined, headers);
+
+const getMyCards = (headers) =>
+  socket.get('/users/me/cards', undefined, headers).then((body) => ({
+    ...body,
+    items: body.items.map(transformCard),
+  }));
 
 const updateUser = (id, data, headers) => socket.patch(`/users/${id}`, data, headers);
 
@@ -59,6 +66,7 @@ export default {
   createUser,
   // getUser,
   getCurrentUser,
+  getMyCards,
   updateUser,
   updateUserEmail,
   updateUserPassword,
