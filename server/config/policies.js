@@ -58,4 +58,9 @@ module.exports.policies = {
   'access-tokens/verify-totp': true,
   'access-tokens/accept-terms': true,
   'access-tokens/revoke-pending-token': true,
+  'telegram/webhook': true,
+  'telegram/auth': true,
+  'telegram/create-login-token': true,
+  'telegram/check-login-status': true,
+  'telegram/check-link-status': true,
 };

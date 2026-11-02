@@ -239,6 +239,19 @@ module.exports.routes = {
   'POST /api/notification-services/:id/test': 'notification-services/test',
   'DELETE /api/notification-services/:id': 'notification-services/delete',
 
+  'POST /api/telegram/webhook': 'telegram/webhook',
+  'POST /api/telegram/auth': 'telegram/auth',
+  'POST /api/telegram/link-token': 'telegram/create-link-token',
+  'GET /api/telegram/link-status/:token': 'telegram/check-link-status',
+  'POST /api/telegram/login-token': 'telegram/create-login-token',
+  'GET /api/telegram/login-status/:token': 'telegram/check-login-status',
+  'POST /api/telegram/unlink': 'telegram/unlink',
+  'GET /api/telegram/settings': 'telegram/get-settings',
+  'PATCH /api/telegram/settings': 'telegram/update-settings',
+  'GET /api/telegram/projects-tree': 'telegram/get-projects-tree',
+  'POST /api/telegram/cards': 'telegram/create-card',
+  'GET /api/telegram/status': 'telegram/status',
+
   'PATCH /api/_internal/config': '_internal/update-config',
 
   'GET /swagger.json': 'swagger/show',

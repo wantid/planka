@@ -10,6 +10,7 @@ import { Tab } from 'semantic-ui-react';
 import selectors from '../../../selectors';
 import entryActions from '../../../entry-actions';
 import NotificationServices from '../../notification-services/NotificationServices';
+import TelegramSettingsSection from '../../telegram/TelegramSettingsSection';
 
 import styles from './NotificationsPane.module.scss';
 
@@ -28,6 +29,7 @@ const NotificationsPane = React.memo(() => {
   return (
     <Tab.Pane attached={false} className={styles.wrapper}>
       <NotificationServices ids={notificationServiceIds} onCreate={handleCreate} />
+      <TelegramSettingsSection />
     </Tab.Pane>
   );
 });

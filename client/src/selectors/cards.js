@@ -448,11 +448,11 @@ export const selectIsCurrentUserInCurrentCard = createSelector(
 );
 
 const compareMyTaskCards = (cardModelA, cardModelB) => {
-  const dueDateA = cardModelA.dueDate;
-  const dueDateB = cardModelB.dueDate;
+  const { dueDate: dueDateA } = cardModelA;
+  const { dueDate: dueDateB } = cardModelB;
 
   if (!dueDateA && !dueDateB) {
-    return cardModelA.name.localeCompare(cardModelB.name);
+    return (cardModelA.name || '').localeCompare(cardModelB.name || '');
   }
 
   if (!dueDateA) {
@@ -463,13 +463,18 @@ const compareMyTaskCards = (cardModelA, cardModelB) => {
     return -1;
   }
 
-  const dueDateDiff = dueDateA.getTime() - dueDateB.getTime();
+  const timeA = new Date(dueDateA).getTime();
+  const timeB = new Date(dueDateB).getTime();
 
-  if (dueDateDiff !== 0) {
-    return dueDateDiff;
+  if (!Number.isNaN(timeA) && !Number.isNaN(timeB)) {
+    const dueDateDiff = timeA - timeB;
+
+    if (dueDateDiff !== 0) {
+      return dueDateDiff;
+    }
   }
 
-  return cardModelA.name.localeCompare(cardModelB.name);
+  return (cardModelA.name || '').localeCompare(cardModelB.name || '');
 };
 
 export const selectMyTaskCardIds = createSelector(

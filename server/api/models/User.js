@@ -455,6 +455,58 @@ module.exports = {
       type: 'json',
       columnName: 'totp_recovery_codes',
     },
+    telegramUserId: {
+      type: 'string',
+      isNotEmptyString: true,
+      allowNull: true,
+      columnName: 'telegram_user_id',
+    },
+    telegramChatId: {
+      type: 'string',
+      isNotEmptyString: true,
+      allowNull: true,
+      columnName: 'telegram_chat_id',
+    },
+    telegramUsername: {
+      type: 'string',
+      isNotEmptyString: true,
+      allowNull: true,
+      columnName: 'telegram_username',
+    },
+    telegramDueDateNotifications: {
+      type: 'boolean',
+      defaultsTo: true,
+      columnName: 'telegram_due_date_notifications',
+    },
+    telegramDueDateMutedUntil: {
+      type: 'ref',
+      columnName: 'telegram_due_date_muted_until',
+    },
+    telegramDailyNotifications: {
+      type: 'boolean',
+      defaultsTo: true,
+      columnName: 'telegram_daily_notifications',
+    },
+    telegramDailyMutedUntil: {
+      type: 'ref',
+      columnName: 'telegram_daily_muted_until',
+    },
+    telegramDailyLastSentDate: {
+      type: 'string',
+      isNotEmptyString: true,
+      allowNull: true,
+      columnName: 'telegram_daily_last_sent_date',
+    },
+    telegramDailyDigestTime: {
+      type: 'string',
+      defaultsTo: '09:00',
+      columnName: 'telegram_daily_digest_time',
+    },
+    telegramDailyDigestTimezone: {
+      type: 'string',
+      defaultsTo: 'UTC',
+      columnName: 'telegram_daily_digest_timezone',
+    },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

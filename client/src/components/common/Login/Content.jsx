@@ -19,6 +19,7 @@ import { isUsername } from '../../../utils/validator';
 import AccessTokenSteps from '../../../constants/AccessTokenSteps';
 import TermsModal from './TermsModal';
 import TotpChallengeModal from './TotpChallengeModal';
+import TelegramLoginButton from '../../telegram/TelegramLoginButton';
 
 import logo from '../../../assets/images/logo.png';
 
@@ -246,6 +247,7 @@ const Content = React.memo(() => {
                   loading={isSubmitting}
                   disabled={isSubmitting}
                 />
+                {bootstrap?.isTelegramBotEnabled && <TelegramLoginButton />}
               </Form>
             </div>
             <div className={styles.poweredBy}>

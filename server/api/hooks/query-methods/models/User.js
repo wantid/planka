@@ -98,6 +98,12 @@ const getOneActiveByApiKeyHash = (apiKeyHash) =>
     isDeactivated: false,
   });
 
+const getOneByTelegramUserId = (telegramUserId) =>
+  User.findOne({
+    telegramUserId: String(telegramUserId),
+    isDeactivated: false,
+  });
+
 const updateOne = async (criteria, values) => {
   const { activeUsersLimit } = await InternalConfig.qm.getOneMain();
   const enforceActiveLimit = values.isDeactivated === false && activeUsersLimit !== null;
@@ -200,6 +206,7 @@ module.exports = {
   getOneByEmail,
   getOneActiveByEmailOrUsername,
   getOneActiveByApiKeyHash,
+  getOneByTelegramUserId,
   updateOne,
   deleteOne,
 };

@@ -66,6 +66,10 @@ module.exports.custom = {
   outgoingProxy: process.env.OUTGOING_PROXY,
   swaggerExposed: process.env.SWAGGER_EXPOSED === 'true',
 
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null,
+  telegramBotMode: process.env.TELEGRAM_BOT_MODE || 'auto',
+  telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || null,
+
   s3Endpoint: process.env.S3_ENDPOINT,
   s3Region: process.env.S3_REGION,
   s3AccessKeyId: process.env.S3_ACCESS_KEY_ID,

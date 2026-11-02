@@ -21,6 +21,7 @@ import AutoLogoutWarningModal from '../AutoLogoutWarningModal';
 import UserSettingsModal from '../../users/UserSettingsModal';
 import ProjectBackground from '../../projects/ProjectBackground';
 import AddProjectModal from '../../projects/AddProjectModal';
+import TelegramLinkPromptModal from '../../telegram/TelegramLinkPromptModal';
 
 const Core = React.memo(() => {
   const isInitializing = useSelector(selectors.selectIsInitializing);
@@ -124,6 +125,7 @@ const Core = React.memo(() => {
           <Static />
           {modalNode}
           <AutoLogoutWarningModal />
+          <TelegramLinkPromptModal />
         </>
       )}
       {messageNode}

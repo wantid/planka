@@ -59,7 +59,17 @@ const getStatus = (date, isCompleted) => {
     return Statuses.COMPLETED;
   }
 
-  const secondsLeft = Math.floor((date.getTime() - new Date().getTime()) / 1000);
+  if (!date) {
+    return null;
+  }
+
+  const dateObj = date instanceof Date ? date : new Date(date);
+  const time = dateObj.getTime();
+  if (Number.isNaN(time)) {
+    return null;
+  }
+
+  const secondsLeft = Math.floor((time - Date.now()) / 1000);
 
   if (secondsLeft <= 0) {
     return Statuses.OVERDUE;
@@ -77,16 +87,22 @@ const DueDateChip = React.memo(
     const [t] = useTranslation();
     const forceUpdate = useForceUpdate();
 
+    let dateObj = null;
+    if (value instanceof Date) {
+      dateObj = value;
+    } else if (value) {
+      dateObj = new Date(value);
+    }
+    const isInvalid = !dateObj || Number.isNaN(dateObj.getTime());
+
     const statusRef = useRef(null);
-    statusRef.current = withStatus ? getStatus(value, isCompleted) : null;
+    statusRef.current = withStatus && !isInvalid ? getStatus(dateObj, isCompleted) : null;
 
     const intervalRef = useRef(null);
 
-    const dateFormat = getDateFormat(
-      value,
-      LONG_DATE_FORMAT_BY_SIZE[size],
-      FULL_DATE_FORMAT_BY_SIZE[size],
-    );
+    const dateFormat = isInvalid
+      ? 'longDateTime'
+      : getDateFormat(dateObj, LONG_DATE_FORMAT_BY_SIZE[size], FULL_DATE_FORMAT_BY_SIZE[size]);
 
     useEffect(() => {
       if (
@@ -113,6 +129,10 @@ const DueDateChip = React.memo(
         }
       };
     }, [value, isCompleted, withStatus, forceUpdate]);
+
+    if (isInvalid) {
+      return null;
+    }
 
     const contentNode = (
       <span
@@ -145,7 +165,7 @@ const DueDateChip = React.memo(
 );
 
 DueDateChip.propTypes = {
-  value: PropTypes.instanceOf(Date).isRequired,
+  value: PropTypes.oneOfType([PropTypes.instanceOf(Date), PropTypes.string]).isRequired,
   size: PropTypes.oneOf(Object.values(Sizes)),
   isCompleted: PropTypes.bool.isRequired,
   isDisabled: PropTypes.bool,

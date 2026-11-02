@@ -20,6 +20,8 @@ module.exports = {
     const data = {
       termsLanguages: sails.hooks.terms.getLanguages(),
       version: sails.config.custom.version,
+      isTelegramBotEnabled: !!sails.config.custom.telegramBotToken,
+      telegramBotUsername: sails.config.custom.telegramBotUsername,
     };
 
     if (inputs.user && inputs.user.role === User.Roles.ADMIN) {
