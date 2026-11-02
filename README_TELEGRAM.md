@@ -29,7 +29,8 @@ Add the following environment variables to your server `.env` file or `docker-co
 | :--- | :--- | :--- | :--- |
 | `TELEGRAM_BOT_TOKEN` | string | *none* | Telegram Bot API token from [@BotFather](https://t.me/BotFather). If omitted, Telegram features remain disabled. |
 | `TELEGRAM_BOT_USERNAME` | string | *auto-detected* | Telegram bot username (without `@`, e.g., `my_planka_bot`). |
-| `TELEGRAM_BOT_MODE` | string | `auto` | Operation mode: `auto`, `webhook`, or `polling`.<br>• `auto`: Uses webhook if `BASE_URL` starts with `https://`, otherwise falls back to polling.<br>• `webhook`: Registers `${BASE_URL}/api/telegram/webhook`.<br>• `polling`: Uses long-polling (no public domain or HTTPS needed). |
+| `TELEGRAM_BOT_MODE` | string | `auto` | Operation mode: `auto`, `webhook`, or `polling`.<br>• `auto`: Uses webhook if `TELEGRAM_WEBHOOK_URL` is set or `BASE_URL` starts with `https://`, otherwise falls back to polling.<br>• `webhook`: Registers webhook at `${TELEGRAM_WEBHOOK_URL}` or `${BASE_URL}/api/telegram/webhook`.<br>• `polling`: Uses long-polling (no public domain or HTTPS needed). |
+| `TELEGRAM_WEBHOOK_URL` | string | *optional* | Custom public HTTPS webhook URL if different from `${BASE_URL}/api/telegram/webhook` (e.g. behind reverse proxies). |
 | `BASE_URL` | string | `http://localhost:3000` | The public URL of your Planka instance (e.g., `https://planka.example.com`). |
 
 ### Example `.env`:

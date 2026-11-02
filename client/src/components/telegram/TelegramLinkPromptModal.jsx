@@ -9,6 +9,7 @@ import { Modal, Button, Icon, Header, Loader } from 'semantic-ui-react';
 import selectors from '../../selectors';
 import entryActions from '../../entry-actions';
 import { createLinkToken, checkLinkStatus } from '../../api/telegram';
+import { openTelegramUrl } from '../../utils/telegram';
 
 const DISMISS_KEY = 'planka_tg_link_prompt_dismissed_until';
 
@@ -66,8 +67,10 @@ const TelegramLinkPromptModal = React.memo(() => {
       const { item } = await createLinkToken();
       setTokenData(item);
 
-      // Open bot URL in new tab / app
-      if (item.botUrl) {
+      const bot = item.botUsername || bootstrap?.telegramBotUsername;
+      if (bot) {
+        openTelegramUrl(bot, `link_${item.token}`);
+      } else if (item.botUrl) {
         window.open(item.botUrl, '_blank', 'noopener,noreferrer');
       }
 
@@ -87,13 +90,23 @@ const TelegramLinkPromptModal = React.memo(() => {
         } catch {
           // ignore polling errors
         }
-      }, 2000);
+      }, 1500);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to create link token:', err);
       setIsLinking(false);
     }
-  }, [dispatch, stopPolling]);
+  }, [bootstrap, dispatch, stopPolling]);
+
+  const handleRepeatOpen = useCallback(() => {
+    if (!tokenData?.token) return;
+    const bot = tokenData?.botUsername || bootstrap?.telegramBotUsername;
+    if (bot) {
+      openTelegramUrl(bot, `link_${tokenData.token}`);
+    } else if (tokenData?.botUrl) {
+      window.open(tokenData.botUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [bootstrap, tokenData]);
 
   if (!isOpen) {
     return null;
@@ -129,21 +142,9 @@ const TelegramLinkPromptModal = React.memo(() => {
         <Loader active inline="centered" size="medium" style={{ marginBottom: '16px' }} />
         <Header as="h4">Ожидание подтверждения в Telegram…</Header>
         <p style={{ color: '#64748b', fontSize: '13px' }}>
-          Мы открыли диалог с ботом. Нажмите кнопку <b>«Запустить» (Start)</b> в Telegram.
+          Мы открыли диалог с ботом. В приложении Telegram нажмите кнопку <b>«Запустить» (Start)</b>
+          .
         </p>
-        {tokenData?.botUrl && (
-          <Button
-            as="a"
-            href={tokenData.botUrl}
-            target="_blank"
-            rel="noreferrer"
-            color="blue"
-            size="small"
-            style={{ marginTop: '8px' }}
-          >
-            Открыть Telegram повторно
-          </Button>
-        )}
       </div>
     );
   }
@@ -154,19 +155,58 @@ const TelegramLinkPromptModal = React.memo(() => {
         <Icon name="telegram plane" color="blue" /> Подключите Telegram
       </Modal.Header>
       <Modal.Content>{bodyContent}</Modal.Content>
-      <Modal.Actions>
+      <Modal.Actions style={{ padding: '12px 16px' }}>
         {!isSuccess && (
-          <>
-            <Button basic onClick={handleDismiss}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              width: '100%',
+            }}
+          >
+            <Button
+              basic
+              onClick={handleDismiss}
+              style={{
+                flex: 1,
+                margin: 0,
+                textAlign: 'center',
+                justifyContent: 'center',
+              }}
+            >
               Напомнить позже
             </Button>
-            {!isLinking && (
-              <Button color="blue" icon labelPosition="right" onClick={handleStartLink}>
+            {!isLinking ? (
+              <Button
+                color="blue"
+                icon
+                labelPosition="right"
+                onClick={handleStartLink}
+                style={{
+                  flex: 1,
+                  margin: 0,
+                  textAlign: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 Привязать Telegram
                 <Icon name="telegram plane" />
               </Button>
+            ) : (
+              <Button
+                color="blue"
+                onClick={handleRepeatOpen}
+                style={{
+                  flex: 1,
+                  margin: 0,
+                  textAlign: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                Открыть Telegram
+              </Button>
             )}
-          </>
+          </div>
         )}
       </Modal.Actions>
     </Modal>

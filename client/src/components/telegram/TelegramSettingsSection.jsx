@@ -16,6 +16,7 @@ import {
   unlinkTelegram,
 } from '../../api/telegram';
 import { getTimezonesList } from '../../constants/Timezones';
+import { openTelegramUrl } from '../../utils/telegram';
 
 const TelegramSettingsSection = React.memo(() => {
   const dispatch = useDispatch();
@@ -63,7 +64,11 @@ const TelegramSettingsSection = React.memo(() => {
     try {
       const { item } = await createLinkToken();
       setLinkUrl(item.botUrl);
-      if (item.botUrl) {
+
+      const bot = item.botUsername || bootstrap?.telegramBotUsername;
+      if (bot) {
+        openTelegramUrl(bot, `link_${item.token}`);
+      } else if (item.botUrl) {
         window.open(item.botUrl, '_blank', 'noopener,noreferrer');
       }
 
@@ -87,7 +92,7 @@ const TelegramSettingsSection = React.memo(() => {
       console.error(err);
       setLinking(false);
     }
-  }, [dispatch, loadSettings, stopPolling]);
+  }, [bootstrap, dispatch, loadSettings, stopPolling]);
 
   const handleUnlink = useCallback(async () => {
     try {

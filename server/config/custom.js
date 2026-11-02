@@ -69,6 +69,7 @@ module.exports.custom = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null,
   telegramBotMode: process.env.TELEGRAM_BOT_MODE || 'auto',
   telegramBotUsername: process.env.TELEGRAM_BOT_USERNAME || null,
+  telegramWebhookUrl: process.env.TELEGRAM_WEBHOOK_URL || null,
 
   s3Endpoint: process.env.S3_ENDPOINT,
   s3Region: process.env.S3_REGION,

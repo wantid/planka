@@ -3,12 +3,11 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-const { Bot, InlineKeyboard, webhookCallback } = require('grammy');
+const { Bot, InlineKeyboard } = require('grammy');
 const escapeHtml = require('escape-html');
 
 module.exports = function defineTelegramHook() {
   let bot = null;
-  let webhookHandler = null;
   let dueDateInterval = null;
   let dailyDigestInterval = null;
 
@@ -270,11 +269,25 @@ module.exports = function defineTelegramHook() {
     },
 
     async handleWebhook(req, res) {
-      if (!webhookHandler) {
-        res.status(503).send('Telegram webhook not ready');
+      if (!bot) {
+        res.status(503).send('Telegram bot not ready');
         return;
       }
-      await webhookHandler(req, res);
+
+      const update = req.body;
+      if (!update || typeof update !== 'object') {
+        res.status(400).send('Invalid update body');
+        return;
+      }
+
+      // Respond 200 OK immediately so Telegram doesn't retry or timeout
+      res.status(200).send('OK');
+
+      try {
+        await bot.handleUpdate(update);
+      } catch (err) {
+        sails.log.error('Telegram hook: Error in handleUpdate:', err);
+      }
     },
 
     async sendMessage(chatId, text, options = {}) {
@@ -294,15 +307,37 @@ module.exports = function defineTelegramHook() {
       try {
         bot = new Bot(token);
 
+        bot.catch((err) => {
+          const updateId = err.ctx && err.ctx.update ? err.ctx.update.update_id : 'unknown';
+          sails.log.error(
+            `Telegram hook: Error while handling update ${updateId}:`,
+            err.error || err,
+          );
+        });
+
         const me = await bot.api.getMe();
         sails.config.custom.telegramBotUsername = me.username;
         sails.log.info(`Telegram bot initialized as @${me.username}`);
 
+        try {
+          await bot.api.setMyCommands([
+            { command: 'start', description: 'Начать / личный кабинет' },
+            { command: 'tasks', description: 'Мои задачи (Mini App)' },
+            { command: 'menu', description: 'Меню Planka' },
+            { command: 'unlink', description: 'Отвязать Telegram-аккаунт' },
+          ]);
+        } catch (cmdErr) {
+          sails.log.warn('Telegram hook: Failed to set commands:', cmdErr.message);
+        }
+
         bot.command('start', async (ctx) => {
-          const payload = ctx.match ? ctx.match.trim() : '';
+          const rawText = (ctx.message && ctx.message.text) || '';
+          const match = ctx.match ? ctx.match.trim() : '';
+          const fallback = rawText.replace(/^\/start(?:@\w+)?\s*/i, '').trim();
+          const payload = match || fallback;
 
           if (payload.startsWith('link_')) {
-            const tokenStr = payload.slice(5);
+            const tokenStr = payload.slice(5).trim();
             const tokenRes = await sails.sendNativeQuery(
               'SELECT * FROM telegram_link_token WHERE token = $1 AND expires_at > NOW()',
               [tokenStr],
@@ -311,6 +346,18 @@ module.exports = function defineTelegramHook() {
             if (tokenRes.rows && tokenRes.rows.length > 0) {
               const linkRecord = tokenRes.rows[0];
               const userId = linkRecord.user_id;
+
+              // Check if this Telegram account is already linked to another Planka user
+              const existingWithTg = await sails.sendNativeQuery(
+                'SELECT id, name FROM user_account WHERE telegram_user_id = $1 AND id != $2',
+                [String(ctx.from.id), userId],
+              );
+              if (existingWithTg.rows && existingWithTg.rows.length > 0) {
+                await ctx.reply(
+                  '⚠️ Этот Telegram-аккаунт уже привязан к другому пользователю Planka. Если вы хотите привязать его сюда, сначала отвяжите его с помощью команды /unlink в боте.',
+                );
+                return;
+              }
 
               await sails.sendNativeQuery(
                 `UPDATE user_account
@@ -348,7 +395,7 @@ module.exports = function defineTelegramHook() {
           }
 
           if (payload.startsWith('login_')) {
-            const tokenStr = payload.slice(6);
+            const tokenStr = payload.slice(6).trim();
             const tokenRes = await sails.sendNativeQuery(
               'SELECT * FROM telegram_login_token WHERE token = $1 AND expires_at > NOW()',
               [tokenStr],
@@ -359,6 +406,14 @@ module.exports = function defineTelegramHook() {
               const user = await User.qm.getOneByTelegramUserId(String(ctx.from.id));
 
               if (user && !user.isDeactivated) {
+                // Ensure chat_id and username are updated as well
+                await sails.sendNativeQuery(
+                  `UPDATE user_account
+                   SET telegram_chat_id = $1, telegram_username = $2
+                   WHERE id = $3`,
+                  [String(ctx.chat.id), ctx.from.username || null, user.id],
+                );
+
                 const { token: accessToken } = sails.helpers.utils.createJwtToken(user.id);
                 await sails.sendNativeQuery(
                   `UPDATE telegram_login_token
@@ -367,20 +422,43 @@ module.exports = function defineTelegramHook() {
                   [user.id, accessToken, String(ctx.from.id), loginRecord.id],
                 );
 
+                const keyboard = new InlineKeyboard()
+                  .webApp('📱 Мои задачи', getMiniAppUrl())
+                  .url('🌐 Перейти в Planka', getBaseUrl());
+
                 await ctx.reply(
-                  '✅ <b>Вход в Planka успешно подтвержден!</b>\n\nВернитесь в браузер — авторизация произойдет автоматически.',
-                  { parse_mode: 'HTML' },
+                  '✅ <b>Вход в Planka успешно подтверждён!</b>\n\n' +
+                    'Вернитесь в браузер — авторизация произойдёт автоматически.',
+                  { parse_mode: 'HTML', reply_markup: keyboard },
                 );
                 return;
               }
 
               if (user && user.isDeactivated) {
+                await sails.sendNativeQuery(
+                  `UPDATE telegram_login_token
+                   SET telegram_user_id = 'deactivated'
+                   WHERE id = $1`,
+                  [loginRecord.id],
+                );
                 await ctx.reply('⚠️ Ваш аккаунт в Planka деактивирован.');
                 return;
               }
 
+              // Telegram account not linked to any Planka user
+              await sails.sendNativeQuery(
+                `UPDATE telegram_login_token
+                 SET telegram_user_id = 'not_linked'
+                 WHERE id = $1`,
+                [loginRecord.id],
+              );
+
+              const keyboard = new InlineKeyboard().url('🌐 Открыть страницу входа', getBaseUrl());
+
               await ctx.reply(
-                '⚠️ Этот Telegram-аккаунт еще не привязан к пользователю Planka. Сначала выполните вход по логину/паролю и привяжите Telegram в настройках профиля.',
+                '⚠️ <b>Этот Telegram-аккаунт ещё не привязан к пользователю Planka.</b>\n\n' +
+                  'Сначала выполните вход на сайте по логину и паролю и привяжите Telegram в настройках профиля (или через окно привязки после входа).',
+                { parse_mode: 'HTML', reply_markup: keyboard },
               );
               return;
             }
@@ -391,6 +469,18 @@ module.exports = function defineTelegramHook() {
 
           const existingUser = await User.qm.getOneByTelegramUserId(String(ctx.from.id));
           if (existingUser) {
+            if (
+              existingUser.telegramChatId !== String(ctx.chat.id) ||
+              existingUser.telegramUsername !== (ctx.from.username || null)
+            ) {
+              await sails.sendNativeQuery(
+                `UPDATE user_account
+                 SET telegram_chat_id = $1, telegram_username = $2
+                 WHERE id = $3`,
+                [String(ctx.chat.id), ctx.from.username || null, existingUser.id],
+              );
+            }
+
             const keyboard = new InlineKeyboard()
               .webApp('📱 Мои задачи', getMiniAppUrl())
               .url('🌐 Перейти в Planka', getBaseUrl());
@@ -447,12 +537,13 @@ module.exports = function defineTelegramHook() {
 
         const configMode = sails.config.custom.telegramBotMode || 'auto';
         const baseUrl = getBaseUrl();
+        const configuredWebhookUrl = sails.config.custom.telegramWebhookUrl;
         let useWebhook = false;
 
         if (configMode === 'webhook') {
           useWebhook = true;
         } else if (configMode === 'auto') {
-          if (baseUrl.startsWith('https://')) {
+          if (configuredWebhookUrl || baseUrl.startsWith('https://')) {
             useWebhook = true;
           } else {
             sails.log.info('Telegram hook: BASE_URL is not https, falling back to polling mode');
@@ -461,17 +552,27 @@ module.exports = function defineTelegramHook() {
         }
 
         if (useWebhook) {
-          const webhookUrl = `${baseUrl}/api/telegram/webhook`;
-          await bot.api.setWebhook(webhookUrl);
-          webhookHandler = webhookCallback(bot, 'node:http');
-          sails.log.info(`Telegram hook: Webhook registered at ${webhookUrl}`);
+          const webhookUrl = configuredWebhookUrl || `${baseUrl}/api/telegram/webhook`;
+          try {
+            await bot.api.setWebhook(webhookUrl, {
+              drop_pending_updates: false,
+              allowed_updates: ['message', 'edited_message', 'callback_query'],
+            });
+            const info = await bot.api.getWebhookInfo();
+            sails.log.info(
+              `Telegram hook: Webhook registered at ${webhookUrl} (pending updates: ${info.pending_update_count}, last error: ${info.last_error_message || 'none'})`,
+            );
+          } catch (whErr) {
+            sails.log.error('Telegram hook: Failed to setWebhook:', whErr.message);
+          }
         } else {
           try {
             await bot.api.deleteWebhook({ drop_pending_updates: false });
-          } catch (err) {
+          } catch (delErr) {
             /* empty */
           }
           bot.start({
+            allowed_updates: ['message', 'edited_message', 'callback_query'],
             onStart: (info) => {
               sails.log.info(`Telegram hook: Bot @${info.username} started in polling mode`);
             },

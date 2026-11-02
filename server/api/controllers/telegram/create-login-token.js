@@ -32,6 +32,7 @@ module.exports = {
     return {
       item: {
         token,
+        botUsername,
         botUrl,
         expiresAt,
       },

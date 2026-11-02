@@ -40,6 +40,28 @@ module.exports = {
       };
     }
 
+    if (row.telegram_user_id === 'not_linked') {
+      await sails.sendNativeQuery('DELETE FROM telegram_login_token WHERE id = $1', [row.id]);
+
+      return {
+        item: {
+          isConfirmed: false,
+          error: 'not_linked',
+        },
+      };
+    }
+
+    if (row.telegram_user_id === 'deactivated') {
+      await sails.sendNativeQuery('DELETE FROM telegram_login_token WHERE id = $1', [row.id]);
+
+      return {
+        item: {
+          isConfirmed: false,
+          error: 'deactivated',
+        },
+      };
+    }
+
     return {
       item: {
         isConfirmed: false,
