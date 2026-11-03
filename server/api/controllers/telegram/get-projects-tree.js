@@ -7,71 +7,76 @@ module.exports = {
   async fn() {
     const { currentUser } = this.req;
 
-    let accessibleBoards = [];
+    let editableBoards = [];
     let projects = [];
+    let managerProjectIds = [];
 
     if (currentUser.role === User.Roles.ADMIN) {
       projects = await Project.find().sort('name ASC');
-      accessibleBoards = await Board.find().sort('position ASC');
+      editableBoards = await Board.find().sort('position ASC');
     } else {
-      const managerProjectIds = await sails.helpers.users.getManagerProjectIds(currentUser.id);
+      managerProjectIds = await sails.helpers.users.getManagerProjectIds(currentUser.id);
       const boardMemberships = await BoardMembership.qm.getByUserId(currentUser.id);
       const membershipBoardIds = sails.helpers.utils.mapRecords(boardMemberships, 'boardId');
 
-      // Also get boards where user is a card member
-      const userCards = await Card.qm.getByMemberUserId(currentUser.id);
-      const userCardListIds = sails.helpers.utils.mapRecords(userCards, 'listId', true);
-      const userCardLists =
-        userCardListIds.length > 0 ? await List.qm.getByIds(userCardListIds) : [];
-      const userCardBoardIds = sails.helpers.utils.mapRecords(userCardLists, 'boardId', true);
-
-      const allDirectBoardIds = _.uniq([...membershipBoardIds, ...userCardBoardIds]);
-
-      const fullyVisibleBoards =
-        managerProjectIds.length > 0 ? await Board.qm.getByProjectIds(managerProjectIds) : [];
-
       const membershipBoards =
-        allDirectBoardIds.length > 0
+        membershipBoardIds.length > 0
           ? await Board.qm.getByIds(
-              allDirectBoardIds,
+              membershipBoardIds,
               managerProjectIds.length > 0
                 ? { exceptProjectIdOrIds: managerProjectIds }
                 : undefined,
             )
           : [];
 
-      accessibleBoards = _.uniqBy([...fullyVisibleBoards, ...membershipBoards], 'id');
-      const projectIds = sails.helpers.utils.mapRecords(accessibleBoards, 'projectId', true);
+      const fullyVisibleBoards =
+        managerProjectIds.length > 0 ? await Board.qm.getByProjectIds(managerProjectIds) : [];
+
+      const allDirectBoards = _.uniqBy([...fullyVisibleBoards, ...membershipBoards], 'id');
+
+      const boardMembershipByBoardId = _.keyBy(boardMemberships, 'boardId');
+      editableBoards = allDirectBoards.filter((b) => {
+        if (managerProjectIds.includes(b.projectId)) {
+          return true;
+        }
+        const bm = boardMembershipByBoardId[b.id];
+        return bm && bm.role === BoardMembership.Roles.EDITOR;
+      });
+
+      const projectIds = _.uniq(sails.helpers.utils.mapRecords(editableBoards, 'projectId', true));
       projects = projectIds.length > 0 ? await Project.qm.getByIds(projectIds) : [];
     }
 
-    const accessibleBoardIds = sails.helpers.utils.mapRecords(accessibleBoards);
-    if (accessibleBoardIds.length === 0 || projects.length === 0) {
+    const editableBoardIds = sails.helpers.utils.mapRecords(editableBoards);
+    if (editableBoardIds.length === 0 || projects.length === 0) {
       return { items: [] };
     }
 
     const projectIds = sails.helpers.utils.mapRecords(projects);
 
     // Get lists for accessible boards (exclude archive and trash)
-    const lists = await List.qm.getByBoardIds(accessibleBoardIds);
+    const lists = await List.qm.getByBoardIds(editableBoardIds);
     const activeLists = lists.filter(
       (l) => l.type !== List.Types.ARCHIVE && l.type !== List.Types.TRASH,
     );
 
     // Get members for accessible boards and project managers
-    const allBoardMemberships = await BoardMembership.qm.getByBoardIds(accessibleBoardIds);
-    const allProjectManagers = await ProjectManager.qm.getByProjectIds(projectIds);
+    const allBoardMemberships =
+      editableBoardIds.length > 0 ? await BoardMembership.qm.getByBoardIds(editableBoardIds) : [];
+    const allProjectManagers =
+      projectIds.length > 0 ? await ProjectManager.qm.getByProjectIds(projectIds) : [];
     const userIds = _.uniq([
+      currentUser.id,
       ...sails.helpers.utils.mapRecords(allBoardMemberships, 'userId'),
       ...sails.helpers.utils.mapRecords(allProjectManagers, 'userId'),
     ]);
-    const users = await User.qm.getByIds(userIds);
+    const users = userIds.length > 0 ? await User.qm.getByIds(userIds) : [];
     const userById = _.keyBy(users, 'id');
 
     const listsByBoardId = _.groupBy(activeLists, 'boardId');
     const membershipsByBoardId = _.groupBy(allBoardMemberships, 'boardId');
     const managersByProjectId = _.groupBy(allProjectManagers, 'projectId');
-    const boardsByProjectId = _.groupBy(accessibleBoards, 'projectId');
+    const boardsByProjectId = _.groupBy(editableBoards, 'projectId');
 
     const tree = projects
       .map((p) => {
@@ -89,7 +94,12 @@ module.exports = {
               .map((bm) => userById[bm.userId])
               .filter(Boolean);
 
-            const uniqueBoardUsers = _.uniqBy([...boardMemberUsers, ...projectManagerUsers], 'id');
+            const uniqueBoardUsers = _.uniqBy(
+              [userById[currentUser.id], ...boardMemberUsers, ...projectManagerUsers].filter(
+                Boolean,
+              ),
+              'id',
+            );
 
             const boardMembers = uniqueBoardUsers.map((u) => ({
               id: u.id,

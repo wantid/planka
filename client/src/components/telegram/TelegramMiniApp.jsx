@@ -75,8 +75,17 @@ const TelegramMiniApp = React.memo(() => {
       }
 
       // Check if already authenticated via cookie or token
-      const token = getAccessToken();
+      let token = getAccessToken();
+      if (!token) {
+        try {
+          token = localStorage.getItem('telegram_access_token');
+        } catch {
+          // ignore
+        }
+      }
+
       if (token) {
+        setAccessToken(token);
         setAuthLoading(false);
         loadCards();
         return;

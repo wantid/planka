@@ -31,14 +31,20 @@ const createOne = (values, { user } = {}) =>
     return { project, projectManager };
   });
 
-const getByIds = (ids) => defaultFind(ids);
+const getByIds = (ids) => {
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return Promise.resolve([]);
+  }
+
+  return defaultFind(ids);
+};
 
 const getShared = ({ exceptIdOrIds } = {}) => {
   const criteria = {
     ownerProjectManagerId: null,
   };
 
-  if (exceptIdOrIds) {
+  if (exceptIdOrIds && (!Array.isArray(exceptIdOrIds) || exceptIdOrIds.length > 0)) {
     criteria.id = {
       '!=': exceptIdOrIds,
     };

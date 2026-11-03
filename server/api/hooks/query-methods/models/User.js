@@ -49,6 +49,10 @@ const createOne = async (values) => {
 };
 
 const getByIds = (ids, { withDeactivated = true } = {}) => {
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return Promise.resolve([]);
+  }
+
   const criteria = {
     id: ids,
   };

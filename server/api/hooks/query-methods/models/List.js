@@ -14,14 +14,45 @@ const defaultFind = (criteria, { sort = 'id' } = {}) => List.find(criteria).sort
 
 const createOne = (values) => List.create({ ...values }).fetch();
 
-const getByIds = (ids) => defaultFind(ids);
+const getByIds = (ids) => {
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return Promise.resolve([]);
+  }
+
+  return defaultFind(ids);
+};
 
 const getByBoardId = (boardId, { exceptIdOrIds, typeOrTypes, sort = ['position', 'id'] } = {}) => {
   const criteria = {
     boardId,
   };
 
-  if (exceptIdOrIds) {
+  if (exceptIdOrIds && (!Array.isArray(exceptIdOrIds) || exceptIdOrIds.length > 0)) {
+    criteria.id = {
+      '!=': exceptIdOrIds,
+    };
+  }
+
+  if (typeOrTypes) {
+    criteria.type = typeOrTypes;
+  }
+
+  return defaultFind(criteria, { sort });
+};
+
+const getByBoardIds = (
+  boardIds,
+  { exceptIdOrIds, typeOrTypes, sort = ['position', 'id'] } = {},
+) => {
+  if (!boardIds || (Array.isArray(boardIds) && boardIds.length === 0)) {
+    return Promise.resolve([]);
+  }
+
+  const criteria = {
+    boardId: boardIds,
+  };
+
+  if (exceptIdOrIds && (!Array.isArray(exceptIdOrIds) || exceptIdOrIds.length > 0)) {
     criteria.id = {
       '!=': exceptIdOrIds,
     };
@@ -136,6 +167,7 @@ module.exports = {
   createOne,
   getByIds,
   getByBoardId,
+  getByBoardIds,
   getOneById,
   getOneTrashByBoardId,
   updateOne,

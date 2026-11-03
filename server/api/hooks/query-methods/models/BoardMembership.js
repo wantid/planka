@@ -22,10 +22,15 @@ const getByProjectIdAndUserId = (projectId, userId) =>
     userId,
   });
 
-const getByProjectIds = (projectIds) =>
-  defaultFind({
+const getByProjectIds = (projectIds) => {
+  if (!projectIds || (Array.isArray(projectIds) && projectIds.length === 0)) {
+    return Promise.resolve([]);
+  }
+
+  return defaultFind({
     projectId: projectIds,
   });
+};
 
 const getByBoardId = (boardId) =>
   defaultFind({
@@ -33,11 +38,15 @@ const getByBoardId = (boardId) =>
   });
 
 const getByBoardIds = (boardIds, { exceptUserIdOrIds } = {}) => {
+  if (!boardIds || (Array.isArray(boardIds) && boardIds.length === 0)) {
+    return Promise.resolve([]);
+  }
+
   const criteria = {
     boardId: boardIds,
   };
 
-  if (exceptUserIdOrIds) {
+  if (exceptUserIdOrIds && (!Array.isArray(exceptUserIdOrIds) || exceptUserIdOrIds.length > 0)) {
     criteria.userId = {
       '!=': exceptUserIdOrIds,
     };

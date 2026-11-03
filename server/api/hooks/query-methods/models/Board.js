@@ -35,6 +35,10 @@ const createOne = (values, { user } = {}) =>
   });
 
 const getByIds = (ids, { exceptProjectIdOrIds } = {}) => {
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return Promise.resolve([]);
+  }
+
   const criteria = {
     id: ids,
   };
@@ -56,7 +60,7 @@ const getByProjectId = (projectId, { exceptIdOrIds, sort = ['position', 'id'] } 
     projectId,
   };
 
-  if (exceptIdOrIds) {
+  if (exceptIdOrIds && (!Array.isArray(exceptIdOrIds) || exceptIdOrIds.length > 0)) {
     criteria.id = {
       '!=': exceptIdOrIds,
     };
@@ -65,13 +69,18 @@ const getByProjectId = (projectId, { exceptIdOrIds, sort = ['position', 'id'] } 
   return defaultFind(criteria, { sort });
 };
 
-const getByProjectIds = (projectIds, { sort = ['position', 'id'] } = {}) =>
-  defaultFind(
+const getByProjectIds = (projectIds, { sort = ['position', 'id'] } = {}) => {
+  if (!projectIds || (Array.isArray(projectIds) && projectIds.length === 0)) {
+    return Promise.resolve([]);
+  }
+
+  return defaultFind(
     {
       projectId: projectIds,
     },
     { sort },
   );
+};
 
 const getOneById = (id) => Board.findOne(id);
 

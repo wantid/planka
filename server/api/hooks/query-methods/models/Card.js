@@ -163,7 +163,7 @@ const getByListIds = async (listIds, { sort = ['position', 'id'] } = {}) =>
     { sort },
   );
 
-const getByMemberUserId = async (userId, { boardIds }) => {
+const getByMemberUserId = async (userId, { boardIds } = {}) => {
   if (!boardIds || boardIds.length === 0) {
     return [];
   }
