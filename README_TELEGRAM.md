@@ -7,6 +7,8 @@ This guide covers the setup, configuration, and features of the Telegram integra
 ## 🚀 Features
 
 - **Account Linking & Login**: Link your Planka user account to Telegram via deep link (`/start link_<token>`). Log in to Planka in one click with Telegram confirmation (`/start login_<token>`).
+- **Avatar Synchronization**: Profile photos from Telegram are automatically imported as the user's Planka avatar upon linking and login. When a user updates their profile picture in Telegram, it syncs one-way to Planka automatically on bot interaction.
+- **In-App Notification Forwarding**: All Planka web notifications (card assignments, comments, mentions, and list movements) are immediately forwarded to the user's Telegram chat with the exact same localized text, direct card links, and inline buttons.
 - **Due Date Alerts**: Automated notifications in Telegram for cards you are assigned to:
   - 1 week before due date (168h)
   - 3 days before due date (72h)

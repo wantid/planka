@@ -270,6 +270,7 @@ const PRIVATE_FIELD_NAMES = [
   'apiKeyCreatedAt',
   'totpSecret',
   'totpRecoveryCodes',
+  'telegramAvatarFileUniqueId',
 ];
 
 const TWO_FACTOR_VISIBLE_FIELD_NAMES = [
@@ -506,6 +507,12 @@ module.exports = {
       type: 'string',
       defaultsTo: 'UTC',
       columnName: 'telegram_daily_digest_timezone',
+    },
+    telegramAvatarFileUniqueId: {
+      type: 'string',
+      isNotEmptyString: true,
+      allowNull: true,
+      columnName: 'telegram_avatar_file_unique_id',
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

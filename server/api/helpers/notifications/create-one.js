@@ -282,6 +282,16 @@ module.exports = {
     });
 
     if (notifiableUser) {
+      if (notifiableUser.telegramChatId) {
+        await sails.helpers.telegram.sendNotification.with({
+          board: inputs.board,
+          card: values.card,
+          notification,
+          actorUser: values.creatorUser,
+          notifiableUser,
+        });
+      }
+
       const notificationServices = await NotificationService.qm.getByUserId(notification.userId);
       const { transporter } = await sails.helpers.utils.makeSmtpTransporter();
 

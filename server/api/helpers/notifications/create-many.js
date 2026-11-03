@@ -302,6 +302,21 @@ module.exports = {
     });
 
     if (notifiableUsers.length > 0) {
+      notifiableUsers.forEach(async (notifiableUser) => {
+        if (notifiableUser.telegramChatId) {
+          notificationsByUserId[notifiableUser.id].forEach(async (notification) => {
+            const values = valuesById[notification.id];
+            await sails.helpers.telegram.sendNotification.with({
+              board: inputs.board,
+              card: values.card,
+              notification,
+              actorUser: values.creatorUser,
+              notifiableUser,
+            });
+          });
+        }
+      });
+
       const notifiableUserIds = sails.helpers.utils.mapRecords(notifiableUsers);
 
       const notificationServices = await NotificationService.qm.getByUserIds(notifiableUserIds);

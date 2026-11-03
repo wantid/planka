@@ -346,6 +346,31 @@ module.exports = function defineTelegramHook() {
           );
         });
 
+        const lastAvatarSyncTime = new Map();
+        bot.use(async (ctx, next) => {
+          if (ctx.from && ctx.from.id && !ctx.from.is_bot) {
+            const tgId = ctx.from.id;
+            const lastSync = lastAvatarSyncTime.get(tgId) || 0;
+            if (Date.now() - lastSync > 15 * 60 * 1000) {
+              lastAvatarSyncTime.set(tgId, Date.now());
+              User.qm
+                .getOneByTelegramUserId(String(tgId))
+                .then((user) => {
+                  if (user) {
+                    sails.helpers.telegram.syncUserAvatar
+                      .with({
+                        user,
+                        telegramUserId: String(tgId),
+                      })
+                      .catch(() => {});
+                  }
+                })
+                .catch(() => {});
+            }
+          }
+          return next();
+        });
+
         bot.command('start', async (ctx) => {
           const rawText = (ctx.message && ctx.message.text) || '';
           const match = ctx.match ? ctx.match.trim() : '';
@@ -390,6 +415,14 @@ module.exports = function defineTelegramHook() {
               sails.sockets.broadcast(`user:${userId}`, 'userUpdate', {
                 item: sails.helpers.users.presentOne(updatedUser, updatedUser),
               });
+
+              sails.helpers.telegram.syncUserAvatar
+                .with({
+                  user: updatedUser,
+                  telegramUserId: String(ctx.from.id),
+                  force: true,
+                })
+                .catch(() => {});
 
               const keyboard = new InlineKeyboard()
                 .webApp('📱 Мои задачи', getMiniAppUrl())
@@ -437,6 +470,13 @@ module.exports = function defineTelegramHook() {
                    WHERE id = $4`,
                   [user.id, accessToken, String(ctx.from.id), loginRecord.id],
                 );
+
+                sails.helpers.telegram.syncUserAvatar
+                  .with({
+                    user,
+                    telegramUserId: String(ctx.from.id),
+                  })
+                  .catch(() => {});
 
                 const keyboard = new InlineKeyboard()
                   .webApp('📱 Мои задачи', getMiniAppUrl())
@@ -501,6 +541,13 @@ module.exports = function defineTelegramHook() {
               .webApp('📱 Мои задачи', getMiniAppUrl())
               .url('🌐 Перейти в Planka', getBaseUrl());
 
+            sails.helpers.telegram.syncUserAvatar
+              .with({
+                user: existingUser,
+                telegramUserId: String(ctx.from.id),
+              })
+              .catch(() => {});
+
             await ctx.reply(
               `👋 Привет, <b>${escapeHtml(existingUser.name)}</b>!\n\n` +
                 'Вы можете открыть свои задачи в Mini App или перейти в веб-версию Planka.',
@@ -519,6 +566,16 @@ module.exports = function defineTelegramHook() {
         });
 
         bot.command(['tasks', 'menu'], async (ctx) => {
+          const user = await User.qm.getOneByTelegramUserId(String(ctx.from.id));
+          if (user) {
+            sails.helpers.telegram.syncUserAvatar
+              .with({
+                user,
+                telegramUserId: String(ctx.from.id),
+              })
+              .catch(() => {});
+          }
+
           const keyboard = new InlineKeyboard()
             .webApp('📱 Мои задачи', getMiniAppUrl())
             .url('🌐 Перейти в Planka', getBaseUrl());

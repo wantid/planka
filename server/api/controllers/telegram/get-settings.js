@@ -7,6 +7,15 @@ module.exports = {
   async fn() {
     const { currentUser } = this.req;
 
+    if (currentUser.telegramUserId) {
+      sails.helpers.telegram.syncUserAvatar
+        .with({
+          user: currentUser,
+          telegramUserId: currentUser.telegramUserId,
+        })
+        .catch(() => {});
+    }
+
     return {
       item: {
         isLinked: !!currentUser.telegramUserId,
