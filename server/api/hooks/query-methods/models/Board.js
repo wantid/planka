@@ -39,7 +39,10 @@ const getByIds = (ids, { exceptProjectIdOrIds } = {}) => {
     id: ids,
   };
 
-  if (exceptProjectIdOrIds) {
+  if (
+    exceptProjectIdOrIds &&
+    (!Array.isArray(exceptProjectIdOrIds) || exceptProjectIdOrIds.length > 0)
+  ) {
     criteria.projectId = {
       '!=': exceptProjectIdOrIds,
     };

@@ -63,6 +63,11 @@ const TelegramMiniApp = React.memo(() => {
         const authRes = await authWithTelegram(initData);
         if (authRes.item && authRes.item.accessToken) {
           setAccessToken(authRes.item.accessToken);
+          try {
+            localStorage.setItem('telegram_access_token', authRes.item.accessToken);
+          } catch {
+            // ignore
+          }
           setAuthLoading(false);
           loadCards();
           return;
@@ -149,6 +154,12 @@ const TelegramMiniApp = React.memo(() => {
     });
   }, [cards, selectedProjectId, listsById, boardsById]);
 
+  const handleCardListChanged = useCallback((cardId, nextListId) => {
+    setCards((prevCards) =>
+      prevCards.map((c) => (c.id === cardId ? { ...c, listId: nextListId } : c)),
+    );
+  }, []);
+
   if (authLoading) {
     return (
       <div className={styles.loadingWrapper}>
@@ -201,50 +212,52 @@ const TelegramMiniApp = React.memo(() => {
 
   return (
     <div className={styles.miniAppWrapper}>
-      {/* Top Header */}
-      <header className={styles.header}>
-        <div className={styles.headerTitle}>
-          <span>📋</span>
-          <span>Мои задачи</span>
-        </div>
-        <div className={styles.headerActions}>
-          <button
-            type="button"
-            className={styles.iconButton}
-            title="Настройки уведомлений"
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            ⚙️
-          </button>
-          <button
-            type="button"
-            className={styles.createButton}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            + Задача
-          </button>
-        </div>
-      </header>
+      {/* Pinned Top Bar */}
+      <div className={styles.topBar}>
+        <header className={styles.header}>
+          <div className={styles.headerTitle}>
+            <span>📋</span>
+            <span>Мои задачи</span>
+          </div>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              title="Настройки уведомлений"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              ⚙️
+            </button>
+            <button
+              type="button"
+              className={styles.createButton}
+              onClick={() => setIsCreateOpen(true)}
+            >
+              + Задача
+            </button>
+          </div>
+        </header>
 
-      {/* Horizontal Project Tabs */}
-      <div className={styles.tabsContainer}>
-        <button
-          type="button"
-          className={classNames(styles.tab, selectedProjectId === 'ALL' && styles.tabActive)}
-          onClick={() => setSelectedProjectId('ALL')}
-        >
-          Все ({cards.length})
-        </button>
-        {projectTabs.map((p) => (
+        {/* Horizontal Project Tabs */}
+        <div className={styles.tabsContainer}>
           <button
-            key={p.id}
             type="button"
-            className={classNames(styles.tab, selectedProjectId === p.id && styles.tabActive)}
-            onClick={() => setSelectedProjectId(p.id)}
+            className={classNames(styles.tab, selectedProjectId === 'ALL' && styles.tabActive)}
+            onClick={() => setSelectedProjectId('ALL')}
           >
-            {p.name} ({p.count})
+            Все ({cards.length})
           </button>
-        ))}
+          {projectTabs.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={classNames(styles.tab, selectedProjectId === p.id && styles.tabActive)}
+              onClick={() => setSelectedProjectId(p.id)}
+            >
+              {p.name} ({p.count})
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main Content / Tasks List */}
@@ -270,6 +283,11 @@ const TelegramMiniApp = React.memo(() => {
             const list = listsById.get(card.listId);
             const board = list ? boardsById.get(list.boardId) : null;
             const project = board ? projectsById.get(board.projectId) : null;
+            const availableLists = board
+              ? (included.lists || [])
+                  .filter((l) => l.boardId === board.id)
+                  .sort((a, b) => a.position - b.position)
+              : [];
 
             return (
               <TelegramTaskItem
@@ -278,6 +296,8 @@ const TelegramMiniApp = React.memo(() => {
                 project={project}
                 board={board}
                 list={list}
+                availableLists={availableLists}
+                onListChange={handleCardListChanged}
               />
             );
           });

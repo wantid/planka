@@ -3,50 +3,96 @@
  * Licensed under the Fair Use License: https://github.com/plankanban/planka/blob/master/LICENSE.md
  */
 
-export const COMMON_TIMEZONES = [
-  { value: 'Europe/Kaliningrad', label: 'Калининград (UTC+2)' },
-  { value: 'Europe/Moscow', label: 'Москва, Санкт-Петербург (UTC+3)' },
-  { value: 'Europe/Samara', label: 'Самара, Саратов (UTC+4)' },
-  { value: 'Asia/Yekaterinburg', label: 'Екатеринбург (UTC+5)' },
-  { value: 'Asia/Omsk', label: 'Омск (UTC+6)' },
-  { value: 'Asia/Novosibirsk', label: 'Новосибирск, Томск (UTC+7)' },
-  { value: 'Asia/Krasnoyarsk', label: 'Красноярск (UTC+7)' },
-  { value: 'Asia/Irkutsk', label: 'Иркутск (UTC+8)' },
-  { value: 'Asia/Yakutsk', label: 'Якутск (UTC+9)' },
-  { value: 'Asia/Vladivostok', label: 'Владивосток (UTC+10)' },
-  { value: 'Asia/Magadan', label: 'Магадан (UTC+11)' },
-  { value: 'Asia/Kamchatka', label: 'Камчатка (UTC+12)' },
-  { value: 'Europe/Kyiv', label: 'Киев (UTC+2 / UTC+3)' },
-  { value: 'Europe/Minsk', label: 'Минск (UTC+3)' },
-  { value: 'Asia/Tashkent', label: 'Ташкент (UTC+5)' },
-  { value: 'Asia/Almaty', label: 'Алматы (UTC+5)' },
-  { value: 'Asia/Tbilisi', label: 'Тбилиси (UTC+4)' },
-  { value: 'Asia/Yerevan', label: 'Ереван (UTC+4)' },
-  { value: 'Asia/Baku', label: 'Баку (UTC+4)' },
-  { value: 'UTC', label: 'UTC (Всемирное время)' },
-  { value: 'Europe/London', label: 'Лондон (UTC+0 / UTC+1)' },
-  { value: 'Europe/Berlin', label: 'Берлин, Париж, Рим (UTC+1 / UTC+2)' },
-  { value: 'Europe/Warsaw', label: 'Варшава (UTC+1 / UTC+2)' },
-  { value: 'America/New_York', label: 'Нью-Йорк (UTC-5 / UTC-4)' },
-  { value: 'America/Chicago', label: 'Чикаго (UTC-6 / UTC-5)' },
-  { value: 'America/Los_Angeles', label: 'Лос-Анджелес (UTC-8 / UTC-7)' },
-  { value: 'Asia/Dubai', label: 'Дубай (UTC+4)' },
-  { value: 'Asia/Singapore', label: 'Сингапур (UTC+8)' },
-  { value: 'Asia/Tokyo', label: 'Токио (UTC+9)' },
+const FALLBACK_TIMEZONES = [
+  'Europe/Kaliningrad',
+  'Europe/Belgrade',
+  'Europe/Moscow',
+  'Europe/Samara',
+  'Asia/Yekaterinburg',
+  'Asia/Omsk',
+  'Asia/Novosibirsk',
+  'Asia/Krasnoyarsk',
+  'Asia/Irkutsk',
+  'Asia/Yakutsk',
+  'Asia/Vladivostok',
+  'Asia/Magadan',
+  'Asia/Kamchatka',
+  'Europe/Kyiv',
+  'Europe/Minsk',
+  'Asia/Tashkent',
+  'Asia/Almaty',
+  'Asia/Tbilisi',
+  'Asia/Yerevan',
+  'Asia/Baku',
+  'UTC',
+  'Europe/London',
+  'Europe/Berlin',
+  'Europe/Paris',
+  'Europe/Rome',
+  'Europe/Warsaw',
+  'Europe/Vienna',
+  'Europe/Prague',
+  'Europe/Budapest',
+  'Europe/Bucharest',
+  'Europe/Sofia',
+  'Europe/Athens',
+  'Europe/Istanbul',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
 ];
 
 export const getTimezonesList = (currentTz) => {
-  if (!currentTz) {
-    return COMMON_TIMEZONES;
+  let allTzNames = [];
+  try {
+    if (typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function') {
+      allTzNames = Intl.supportedValuesOf('timeZone');
+    }
+  } catch {
+    allTzNames = [];
   }
-  const exists = COMMON_TIMEZONES.some((tz) => tz.value === currentTz);
-  if (exists) {
-    return COMMON_TIMEZONES;
+
+  if (allTzNames.length === 0) {
+    allTzNames = FALLBACK_TIMEZONES;
   }
-  return [{ value: currentTz, label: `${currentTz} (Текущий)` }, ...COMMON_TIMEZONES];
+
+  const list = allTzNames.map((tz) => {
+    let offset = '';
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        timeZoneName: 'shortOffset',
+      });
+      const parts = formatter.formatToParts(now);
+      const part = parts.find((p) => p.type === 'timeZoneName');
+      if (part && part.value) {
+        offset = ` (${part.value})`;
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      value: tz,
+      label: `${tz}${offset}`,
+    };
+  });
+
+  // Ensure current timezone is always in the list
+  if (currentTz && !list.some((item) => item.value === currentTz)) {
+    list.unshift({
+      value: currentTz,
+      label: `${currentTz} (Текущий)`,
+    });
+  }
+
+  return list;
 };
 
 export default {
-  COMMON_TIMEZONES,
   getTimezonesList,
 };

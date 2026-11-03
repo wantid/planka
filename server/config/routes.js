@@ -250,6 +250,7 @@ module.exports.routes = {
   'PATCH /api/telegram/settings': 'telegram/update-settings',
   'GET /api/telegram/projects-tree': 'telegram/get-projects-tree',
   'POST /api/telegram/cards': 'telegram/create-card',
+  'PATCH /api/telegram/cards/:id/list': 'telegram/update-card-list',
   'GET /api/telegram/status': 'telegram/status',
 
   'PATCH /api/_internal/config': '_internal/update-config',

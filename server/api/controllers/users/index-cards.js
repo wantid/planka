@@ -136,10 +136,14 @@ module.exports = {
     }
 
     const cardIds = sails.helpers.utils.mapRecords(cards);
-    const listIds = sails.helpers.utils.mapRecords(cards, 'listId', true);
-    const lists = await List.qm.getByIds(listIds);
-    const boardIds = sails.helpers.utils.mapRecords(lists, 'boardId', true);
+    const cardListIds = sails.helpers.utils.mapRecords(cards, 'listId', true);
+    const cardLists = await List.qm.getByIds(cardListIds);
+    const boardIds = sails.helpers.utils.mapRecords(cardLists, 'boardId', true);
     const boards = await Board.qm.getByIds(boardIds);
+    const allBoardLists = await List.qm.getByBoardIds(boardIds);
+    const lists = allBoardLists.filter(
+      (l) => l.type !== List.Types.ARCHIVE && l.type !== List.Types.TRASH,
+    );
     const projectIds = sails.helpers.utils.mapRecords(boards, 'projectId', true);
     const projects = await Project.qm.getByIds(projectIds);
     const cardMemberships = await CardMembership.qm.getByCardIds(cardIds);

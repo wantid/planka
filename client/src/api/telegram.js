@@ -7,7 +7,15 @@ import Config from '../constants/Config';
 import { getAccessToken } from '../utils/access-token-storage';
 
 const jsonFetch = async (url, options = {}) => {
-  const token = getAccessToken();
+  let token = getAccessToken();
+  if (!token) {
+    try {
+      token = localStorage.getItem('telegram_access_token');
+    } catch {
+      // ignore
+    }
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -76,6 +84,12 @@ export const getTelegramStatus = () => jsonFetch('/telegram/status');
 
 export const getMyCards = () => jsonFetch('/users/me/cards');
 
+export const updateCardList = (cardId, listId) =>
+  jsonFetch(`/telegram/cards/${cardId}/list`, {
+    method: 'PATCH',
+    body: JSON.stringify({ listId }),
+  });
+
 export default {
   authWithTelegram,
   createLinkToken,
@@ -89,4 +103,5 @@ export default {
   createTelegramCard,
   getTelegramStatus,
   getMyCards,
+  updateCardList,
 };

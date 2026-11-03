@@ -39,7 +39,10 @@ const TelegramTaskCreateModal = React.memo(({ onClose, onCreated }) => {
           }
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to load projects tree:', err);
+      })
       .finally(() => setLoading(false));
   }, []);
 
