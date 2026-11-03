@@ -4,10 +4,13 @@
  */
 
 const { Bot, InlineKeyboard } = require('grammy');
+const { ProxyAgent } = require('undici');
 const escapeHtml = require('escape-html');
 
 module.exports = function defineTelegramHook() {
   let bot = null;
+  let retryTimer = null;
+  let retryAttempt = 0;
   let dueDateInterval = null;
   let dailyDigestInterval = null;
 
@@ -305,7 +308,35 @@ module.exports = function defineTelegramHook() {
       }
 
       try {
-        bot = new Bot(token);
+        const botId = parseInt(token.split(':')[0], 10) || 0;
+        const initialUsername = (sails.config.custom.telegramBotUsername || 'PlankaBot').replace(
+          /^@/,
+          '',
+        );
+
+        const clientOptions = {};
+        const proxyUrl =
+          sails.config.custom.outgoingProxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+        if (proxyUrl) {
+          clientOptions.baseFetchConfig = {
+            dispatcher: new ProxyAgent(proxyUrl),
+          };
+        }
+
+        bot = new Bot(token, {
+          botInfo: {
+            id: botId,
+            is_bot: true,
+            first_name: initialUsername,
+            username: initialUsername,
+            can_join_groups: true,
+            can_read_all_group_messages: false,
+            supports_inline_queries: false,
+            can_connect_to_business: false,
+            has_main_web_app: false,
+          },
+          client: clientOptions,
+        });
 
         bot.catch((err) => {
           const updateId = err.ctx && err.ctx.update ? err.ctx.update.update_id : 'unknown';
@@ -314,21 +345,6 @@ module.exports = function defineTelegramHook() {
             err.error || err,
           );
         });
-
-        const me = await bot.api.getMe();
-        sails.config.custom.telegramBotUsername = me.username;
-        sails.log.info(`Telegram bot initialized as @${me.username}`);
-
-        try {
-          await bot.api.setMyCommands([
-            { command: 'start', description: 'Начать / личный кабинет' },
-            { command: 'tasks', description: 'Мои задачи (Mini App)' },
-            { command: 'menu', description: 'Меню Planka' },
-            { command: 'unlink', description: 'Отвязать Telegram-аккаунт' },
-          ]);
-        } catch (cmdErr) {
-          sails.log.warn('Telegram hook: Failed to set commands:', cmdErr.message);
-        }
 
         bot.command('start', async (ctx) => {
           const rawText = (ctx.message && ctx.message.text) || '';
@@ -535,49 +551,83 @@ module.exports = function defineTelegramHook() {
           await ctx.reply('✅ Telegram-аккаунт успешно отвязан от Planka.');
         });
 
-        const configMode = sails.config.custom.telegramBotMode || 'auto';
-        const baseUrl = getBaseUrl();
-        const configuredWebhookUrl = sails.config.custom.telegramWebhookUrl;
-        let useWebhook = false;
-
-        if (configMode === 'webhook') {
-          useWebhook = true;
-        } else if (configMode === 'auto') {
-          if (configuredWebhookUrl || baseUrl.startsWith('https://')) {
-            useWebhook = true;
-          } else {
-            sails.log.info('Telegram hook: BASE_URL is not https, falling back to polling mode');
-            useWebhook = false;
-          }
-        }
-
-        if (useWebhook) {
-          const webhookUrl = configuredWebhookUrl || `${baseUrl}/api/telegram/webhook`;
+        const connectAndRegister = async () => {
           try {
-            await bot.api.setWebhook(webhookUrl, {
-              drop_pending_updates: false,
-              allowed_updates: ['message', 'edited_message', 'callback_query'],
-            });
-            const info = await bot.api.getWebhookInfo();
+            const me = await bot.api.getMe();
+            bot.botInfo = me;
+            sails.config.custom.telegramBotUsername = me.username;
             sails.log.info(
-              `Telegram hook: Webhook registered at ${webhookUrl} (pending updates: ${info.pending_update_count}, last error: ${info.last_error_message || 'none'})`,
+              `Telegram hook: Connected to Telegram API as @${me.username} (id: ${me.id})`,
             );
-          } catch (whErr) {
-            sails.log.error('Telegram hook: Failed to setWebhook:', whErr.message);
+
+            try {
+              await bot.api.setMyCommands([
+                { command: 'start', description: 'Начать / личный кабинет' },
+                { command: 'tasks', description: 'Мои задачи (Mini App)' },
+                { command: 'menu', description: 'Меню Planka' },
+                { command: 'unlink', description: 'Отвязать Telegram-аккаунт' },
+              ]);
+            } catch (cmdErr) {
+              sails.log.warn('Telegram hook: Failed to set commands:', cmdErr.message);
+            }
+
+            const configMode = sails.config.custom.telegramBotMode || 'auto';
+            const baseUrl = getBaseUrl();
+            const configuredWebhookUrl = sails.config.custom.telegramWebhookUrl;
+            let useWebhook = false;
+
+            if (configMode === 'webhook') {
+              useWebhook = true;
+            } else if (configMode === 'auto') {
+              if (configuredWebhookUrl || baseUrl.startsWith('https://')) {
+                useWebhook = true;
+              } else {
+                sails.log.info(
+                  'Telegram hook: BASE_URL is not https, falling back to polling mode',
+                );
+                useWebhook = false;
+              }
+            }
+
+            if (useWebhook) {
+              const webhookUrl = configuredWebhookUrl || `${baseUrl}/api/telegram/webhook`;
+              await bot.api.setWebhook(webhookUrl, {
+                drop_pending_updates: false,
+                allowed_updates: ['message', 'edited_message', 'callback_query'],
+              });
+              const info = await bot.api.getWebhookInfo();
+              sails.log.info(
+                `Telegram hook: Webhook registered at ${webhookUrl} (pending updates: ${info.pending_update_count}, last error: ${info.last_error_message || 'none'})`,
+              );
+            } else {
+              try {
+                await bot.api.deleteWebhook({ drop_pending_updates: false });
+              } catch (delErr) {
+                /* empty */
+              }
+              bot.start({
+                allowed_updates: ['message', 'edited_message', 'callback_query'],
+                onStart: (info) => {
+                  sails.log.info(`Telegram hook: Bot @${info.username} started in polling mode`);
+                },
+              });
+            }
+
+            if (retryTimer) {
+              clearTimeout(retryTimer);
+              retryTimer = null;
+            }
+          } catch (err) {
+            retryAttempt += 1;
+            const delay = Math.min(30, retryAttempt * 5) * 1000;
+            sails.log.warn(
+              `Telegram hook: Connection to Telegram API failed (${err.message}). Retrying in ${delay / 1000}s...`,
+            );
+            retryTimer = setTimeout(connectAndRegister, delay);
           }
-        } else {
-          try {
-            await bot.api.deleteWebhook({ drop_pending_updates: false });
-          } catch (delErr) {
-            /* empty */
-          }
-          bot.start({
-            allowed_updates: ['message', 'edited_message', 'callback_query'],
-            onStart: (info) => {
-              sails.log.info(`Telegram hook: Bot @${info.username} started in polling mode`);
-            },
-          });
-        }
+        };
+
+        connectAndRegister();
 
         dueDateInterval = setInterval(checkDueDates, 60 * 1000);
         dailyDigestInterval = setInterval(checkDailyDigests, 60 * 1000);
@@ -592,6 +642,10 @@ module.exports = function defineTelegramHook() {
     },
 
     async teardown() {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
       if (dueDateInterval) {
         clearInterval(dueDateInterval);
       }

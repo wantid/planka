@@ -11,8 +11,6 @@ import entryActions from '../../entry-actions';
 import { createLinkToken, checkLinkStatus } from '../../api/telegram';
 import { openTelegramUrl } from '../../utils/telegram';
 
-const DISMISS_KEY = 'planka_tg_link_prompt_dismissed_until';
-
 const TelegramLinkPromptModal = React.memo(() => {
   const dispatch = useDispatch();
   const currentUser = useSelector(selectors.selectCurrentUser);
@@ -25,15 +23,21 @@ const TelegramLinkPromptModal = React.memo(() => {
 
   const pollIntervalRef = useRef(null);
 
+  // Clean up any legacy dismiss key from localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('planka_tg_link_prompt_dismissed_until');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     let timer;
     if (bootstrap?.isTelegramBotEnabled && currentUser && !currentUser.telegramUserId) {
-      const dismissedUntil = localStorage.getItem(DISMISS_KEY);
-      if (!dismissedUntil || Number(dismissedUntil) <= Date.now()) {
-        timer = setTimeout(() => {
-          setIsOpen(true);
-        }, 1500);
-      }
+      timer = setTimeout(() => {
+        setIsOpen(true);
+      }, 1500);
     } else {
       setIsOpen(false);
     }
@@ -57,8 +61,6 @@ const TelegramLinkPromptModal = React.memo(() => {
   const handleDismiss = useCallback(() => {
     stopPolling();
     setIsOpen(false);
-    // Dismiss for 7 days
-    localStorage.setItem(DISMISS_KEY, String(Date.now() + 7 * 24 * 60 * 60 * 1000));
   }, [stopPolling]);
 
   const handleStartLink = useCallback(async () => {
