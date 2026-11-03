@@ -4,15 +4,17 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Button, Icon, Modal, Loader, Header, Message } from 'semantic-ui-react';
 import Config from '../../constants/Config';
 import selectors from '../../selectors';
+import actions from '../../actions';
 import { createLoginToken, checkLoginStatus } from '../../api/telegram';
 import { setAccessToken } from '../../utils/access-token-storage';
 import { openTelegramUrl } from '../../utils/telegram';
 
 const TelegramLoginButton = React.memo(() => {
+  const dispatch = useDispatch();
   const bootstrap = useSelector(selectors.selectBootstrap);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +31,51 @@ const TelegramLoginButton = React.memo(() => {
     }
   }, []);
 
+  const handleSuccessfulAuth = useCallback(
+    (accessToken) => {
+      stopPolling();
+      setIsSuccess(true);
+      try {
+        localStorage.removeItem('telegram_pending_login_token');
+      } catch {
+        // ignore
+      }
+      setAccessToken(accessToken);
+      dispatch(actions.authenticate.success(accessToken));
+      setTimeout(() => {
+        window.location.href = Config.BASE_PATH || '/';
+      }, 500);
+    },
+    [dispatch, stopPolling],
+  );
+
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // Check if user already confirmed in Telegram while mobile browser tab was in background
+  useEffect(() => {
+    let pendingToken;
+    try {
+      pendingToken = localStorage.getItem('telegram_pending_login_token');
+    } catch {
+      // ignore
+    }
+
+    let isCancelled = false;
+    if (pendingToken) {
+      checkLoginStatus(pendingToken)
+        .then((res) => {
+          if (isCancelled) return;
+          if (res.item && res.item.isConfirmed && res.item.accessToken) {
+            handleSuccessfulAuth(res.item.accessToken);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [handleSuccessfulAuth]);
 
   const handleStartLogin = useCallback(async () => {
     setError('');
@@ -38,6 +84,12 @@ const TelegramLoginButton = React.memo(() => {
       const { item } = await createLoginToken();
       setTokenData(item);
       setIsOpen(true);
+
+      try {
+        localStorage.setItem('telegram_pending_login_token', item.token);
+      } catch {
+        // ignore
+      }
 
       const bot = item.botUsername || bootstrap?.telegramBotUsername;
       if (bot) {
@@ -51,22 +103,32 @@ const TelegramLoginButton = React.memo(() => {
         try {
           const res = await checkLoginStatus(item.token);
           if (res.item && res.item.isConfirmed && res.item.accessToken) {
-            stopPolling();
-            setIsSuccess(true);
-            setAccessToken(res.item.accessToken);
-            setTimeout(() => {
-              window.location.href = Config.BASE_PATH || '/';
-            }, 1000);
+            handleSuccessfulAuth(res.item.accessToken);
           } else if (res.item && res.item.error === 'not_linked') {
             stopPolling();
+            try {
+              localStorage.removeItem('telegram_pending_login_token');
+            } catch {
+              // ignore
+            }
             setError(
               'Этот Telegram-аккаунт ещё не привязан к профилю Planka. Сначала выполните вход по логину/паролю и привяжите Telegram в настройках профиля.',
             );
           } else if (res.item && res.item.error === 'deactivated') {
             stopPolling();
+            try {
+              localStorage.removeItem('telegram_pending_login_token');
+            } catch {
+              // ignore
+            }
             setError('Ваш аккаунт в Planka деактивирован.');
           } else if (res.item && res.item.isExpired) {
             stopPolling();
+            try {
+              localStorage.removeItem('telegram_pending_login_token');
+            } catch {
+              // ignore
+            }
             setError('Время ожидания входа истекло. Попробуйте снова.');
           }
         } catch {
@@ -79,7 +141,7 @@ const TelegramLoginButton = React.memo(() => {
       setError('Не удалось начать вход через Telegram. Попробуйте снова.');
       setIsOpen(true);
     }
-  }, [bootstrap, stopPolling]);
+  }, [bootstrap, handleSuccessfulAuth, stopPolling]);
 
   const handleRepeatOpen = useCallback(() => {
     if (!tokenData?.token) return;

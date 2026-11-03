@@ -26,6 +26,19 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
 
   const timezones = useMemo(() => getTimezonesList(dailyTimezone), [dailyTimezone]);
 
+  // Lock background scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, []);
+
   useEffect(() => {
     getTelegramSettings()
       .then(({ item }) => {

@@ -1,7 +1,15 @@
+:global(body:has(.miniAppWrapper)),
+:global(body#app:has(.miniAppWrapper)) {
+  background: var(--tg-theme-bg-color, #f7f9fa) !important;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 .miniAppWrapper {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--tg-theme-bg-color, #f7f9fa);
   color: var(--tg-theme-text-color, #1e293b);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -319,6 +327,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  overscroll-behavior: contain;
 }
 
 .modalBackdrop {
@@ -331,6 +340,7 @@
   width: 100%;
   height: 100%;
   cursor: pointer;
+  touch-action: none;
 }
 
 .modalCard {
@@ -344,8 +354,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 90vh;
+  max-height: 85vh;
+  max-height: 85dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   box-sizing: border-box;
 }
 
@@ -374,12 +387,21 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .formLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--tg-theme-text-color, #334155);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .formInput,
@@ -394,11 +416,23 @@
   font-family: inherit;
   box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
 
   &:focus {
     outline: none;
     border-color: var(--tg-theme-button-color, #2563eb);
   }
+}
+
+input[type="time"].formInput {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .formTextarea {

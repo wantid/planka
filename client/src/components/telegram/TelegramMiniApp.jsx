@@ -25,16 +25,35 @@ const TelegramMiniApp = React.memo(() => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Initialize Telegram WebApp SDK
+  // Initialize Telegram WebApp SDK and synchronize background colors
   useEffect(() => {
+    const prevBodyBg = document.body.style.backgroundColor;
+    const prevHtmlBg = document.documentElement.style.backgroundColor;
+
     const tg = window.Telegram?.WebApp;
+    const tgBg = tg?.backgroundColor || 'var(--tg-theme-bg-color, #f7f9fa)';
+    document.body.style.backgroundColor = tgBg;
+    if (document.documentElement) {
+      document.documentElement.style.backgroundColor = tgBg;
+    }
+
     if (tg) {
       tg.ready();
       tg.expand();
       if (tg.setHeaderColor) {
         tg.setHeaderColor('bg_color');
       }
+      if (tg.setBackgroundColor) {
+        tg.setBackgroundColor('bg_color');
+      }
     }
+
+    return () => {
+      document.body.style.backgroundColor = prevBodyBg;
+      if (document.documentElement) {
+        document.documentElement.style.backgroundColor = prevHtmlBg;
+      }
+    };
   }, []);
 
   const loadCards = useCallback(async () => {
