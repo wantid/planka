@@ -30,8 +30,7 @@ module.exports = {
     notificationDays: {
       type: 'json',
       custom: (value) =>
-        Array.isArray(value) &&
-        value.every((day) => Number.isInteger(day) && day >= 1 && day <= 7),
+        Array.isArray(value) && value.every((day) => Number.isInteger(day) && day >= 1 && day <= 7),
     },
   },
 
