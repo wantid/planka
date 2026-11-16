@@ -17,16 +17,7 @@ module.exports = {
     }
 
     return {
-      item: {
-        isLinked: !!currentUser.telegramUserId,
-        telegramUsername: currentUser.telegramUsername,
-        dueDateNotifications: currentUser.telegramDueDateNotifications !== false,
-        dueDateMutedUntil: currentUser.telegramDueDateMutedUntil,
-        dailyNotifications: currentUser.telegramDailyNotifications !== false,
-        dailyMutedUntil: currentUser.telegramDailyMutedUntil,
-        dailyDigestTime: currentUser.telegramDailyDigestTime || '09:00',
-        dailyDigestTimezone: currentUser.telegramDailyDigestTimezone || 'UTC',
-      },
+      item: sails.helpers.telegram.presentSettings(currentUser),
     };
   },
 };

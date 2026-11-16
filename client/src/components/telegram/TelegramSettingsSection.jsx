@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Header, Divider, Button, Icon, Form, Loader, Message } from 'semantic-ui-react';
+import { Header, Divider, Button, Icon, Form, Loader, Message, Checkbox } from 'semantic-ui-react';
 import selectors from '../../selectors';
 import entryActions from '../../entry-actions';
 import {
@@ -15,6 +15,11 @@ import {
   checkLinkStatus,
   unlinkTelegram,
 } from '../../api/telegram';
+import {
+  DEFAULT_NOTIFICATION_DAYS,
+  WEEKDAYS,
+  toggleNotificationDay,
+} from '../../constants/Telegram';
 import { getTimezonesList } from '../../constants/Timezones';
 import { openTelegramUrl } from '../../utils/telegram';
 
@@ -254,6 +259,32 @@ const TelegramSettingsSection = React.memo(() => {
               </Form.Field>
             </Form.Group>
           )}
+
+          <Form.Field>
+            <div style={{ fontWeight: 700, fontSize: '0.92857143em', marginBottom: '6px' }}>
+              Дни уведомлений
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {WEEKDAYS.map((day) => {
+                const currentDays = Array.isArray(settings.notificationDays)
+                  ? settings.notificationDays
+                  : DEFAULT_NOTIFICATION_DAYS;
+                return (
+                  <Checkbox
+                    key={day.value}
+                    label={day.short}
+                    title={day.label}
+                    checked={currentDays.includes(day.value)}
+                    onChange={() =>
+                      handleUpdate({
+                        notificationDays: toggleNotificationDay(currentDays, day.value),
+                      })
+                    }
+                  />
+                );
+              })}
+            </div>
+          </Form.Field>
         </Form>
       </div>
     );

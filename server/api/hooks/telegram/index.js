@@ -58,7 +58,9 @@ module.exports = function defineTelegramHook() {
           cm.user_id,
           ua.telegram_chat_id,
           ua.telegram_due_date_notifications,
-          ua.telegram_due_date_muted_until
+          ua.telegram_due_date_muted_until,
+          ua.telegram_daily_digest_timezone,
+          ua.telegram_notification_days
         FROM card
         JOIN list ON card.list_id = list.id
         JOIN board ON card.board_id = board.id
@@ -78,6 +80,16 @@ module.exports = function defineTelegramHook() {
 
       await Promise.all(
         rows.map(async (row) => {
+          if (
+            !sails.helpers.telegram.isNotificationDayEnabled.with({
+              notificationDays: row.telegram_notification_days,
+              timezone: row.telegram_daily_digest_timezone,
+              date: now,
+            })
+          ) {
+            return;
+          }
+
           const dueTime = new Date(row.due_date).getTime();
           const diffHours = (dueTime - nowTime) / (1000 * 60 * 60);
 
@@ -195,7 +207,8 @@ module.exports = function defineTelegramHook() {
 
       const userSql = `
         SELECT id, name, telegram_chat_id, telegram_daily_last_sent_date,
-               telegram_daily_digest_time, telegram_daily_digest_timezone
+               telegram_daily_digest_time, telegram_daily_digest_timezone,
+               telegram_notification_days
         FROM user_account
         WHERE telegram_chat_id IS NOT NULL
           AND telegram_daily_notifications = true
@@ -207,6 +220,16 @@ module.exports = function defineTelegramHook() {
       await Promise.all(
         users.map(async (user) => {
           const userTz = user.telegram_daily_digest_timezone || 'UTC';
+          if (
+            !sails.helpers.telegram.isNotificationDayEnabled.with({
+              notificationDays: user.telegram_notification_days,
+              timezone: userTz,
+              date: now,
+            })
+          ) {
+            return;
+          }
+
           const { dateStr, timeStr } = getUserTimeInTz(now, userTz);
 
           if (user.telegram_daily_last_sent_date === dateStr) {
