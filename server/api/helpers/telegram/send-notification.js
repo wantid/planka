@@ -108,6 +108,15 @@ module.exports = {
       return;
     }
 
+    if (
+      !sails.helpers.telegram.isNotificationDayEnabled.with({
+        notificationDays: inputs.notifiableUser.telegramNotificationDays,
+        timezone: inputs.notifiableUser.telegramDailyDigestTimezone,
+      })
+    ) {
+      return;
+    }
+
     try {
       const t = sails.helpers.utils.makeTranslator(inputs.notifiableUser.language);
       const title = buildTitle(inputs.notification, t);

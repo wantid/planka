@@ -508,6 +508,11 @@ module.exports = {
       defaultsTo: 'UTC',
       columnName: 'telegram_daily_digest_timezone',
     },
+    telegramNotificationDays: {
+      type: 'json',
+      defaultsTo: [1, 2, 3, 4, 5],
+      columnName: 'telegram_notification_days',
+    },
     telegramAvatarFileUniqueId: {
       type: 'string',
       isNotEmptyString: true,

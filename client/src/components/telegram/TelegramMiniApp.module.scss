@@ -525,3 +525,42 @@ input[type="time"].formInput {
     font-weight: 600;
   }
 }
+
+.daysCheckboxes {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.dayCheckbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--tg-theme-secondary-bg-color, #cbd5e1);
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #334155);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--tg-theme-button-color, #2563eb);
+    cursor: pointer;
+  }
+
+  &.dayCheckboxActive {
+    border-color: var(--tg-theme-button-color, #2563eb);
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+  }
+}

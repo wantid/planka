@@ -7,6 +7,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { getTelegramSettings, updateTelegramSettings } from '../../api/telegram';
+import {
+  DEFAULT_NOTIFICATION_DAYS,
+  WEEKDAYS,
+  toggleNotificationDay,
+} from '../../constants/Telegram';
 import { getTimezonesList } from '../../constants/Timezones';
 import styles from './TelegramMiniApp.module.scss';
 
@@ -23,6 +28,7 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
       return 'UTC';
     }
   });
+  const [notificationDays, setNotificationDays] = useState(DEFAULT_NOTIFICATION_DAYS);
 
   const timezones = useMemo(() => getTimezonesList(dailyTimezone), [dailyTimezone]);
 
@@ -71,13 +77,17 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
         if (item.dailyDigestTimezone) {
           setDailyTimezone(item.dailyDigestTimezone);
         }
+
+        if (Array.isArray(item.notificationDays)) {
+          setNotificationDays(item.notificationDays);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const handleSave = useCallback(
-    async (newDueDateMode, newDailyMode, newTime, newTz) => {
+    async (newDueDateMode, newDailyMode, newTime, newTz, newDays) => {
       setSaving(true);
       try {
         const payload = {};
@@ -110,6 +120,7 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
 
         payload.dailyDigestTime = newTime !== undefined ? newTime : dailyTime;
         payload.dailyDigestTimezone = newTz !== undefined ? newTz : dailyTimezone;
+        payload.notificationDays = newDays !== undefined ? newDays : notificationDays;
 
         await updateTelegramSettings(payload);
         if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -122,27 +133,33 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
         setSaving(false);
       }
     },
-    [dailyTime, dailyTimezone],
+    [dailyTime, dailyTimezone, notificationDays],
   );
 
   const selectDueDateMode = (mode) => {
     setDueDateMode(mode);
-    handleSave(mode, dailyMode, dailyTime, dailyTimezone);
+    handleSave(mode, dailyMode, dailyTime, dailyTimezone, notificationDays);
   };
 
   const selectDailyMode = (mode) => {
     setDailyMode(mode);
-    handleSave(dueDateMode, mode, dailyTime, dailyTimezone);
+    handleSave(dueDateMode, mode, dailyTime, dailyTimezone, notificationDays);
   };
 
   const handleTimeChange = (val) => {
     setDailyTime(val);
-    handleSave(dueDateMode, dailyMode, val, dailyTimezone);
+    handleSave(dueDateMode, dailyMode, val, dailyTimezone, notificationDays);
   };
 
   const handleTimezoneChange = (val) => {
     setDailyTimezone(val);
-    handleSave(dueDateMode, dailyMode, dailyTime, val);
+    handleSave(dueDateMode, dailyMode, dailyTime, val, notificationDays);
+  };
+
+  const handleToggleDay = (dayValue) => {
+    const nextDays = toggleNotificationDay(notificationDays, dayValue);
+    setNotificationDays(nextDays);
+    handleSave(dueDateMode, dailyMode, dailyTime, dailyTimezone, nextDays);
   };
 
   return (
@@ -310,6 +327,39 @@ const TelegramSettingsModal = React.memo(({ onClose }) => {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className={styles.settingsSection}>
+              <div className={styles.settingsSectionTitle}>
+                Дни уведомлений
+                <div style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}>
+                  (в выбранные дни приходят все Telegram-уведомления)
+                </div>
+              </div>
+              <div className={styles.daysCheckboxes}>
+                {WEEKDAYS.map((day) => {
+                  const isChecked = notificationDays.includes(day.value);
+                  return (
+                    <label
+                      key={day.value}
+                      htmlFor={`tg-day-${day.value}`}
+                      title={day.label}
+                      className={classNames(
+                        styles.dayCheckbox,
+                        isChecked && styles.dayCheckboxActive,
+                      )}
+                    >
+                      <input
+                        id={`tg-day-${day.value}`}
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleDay(day.value)}
+                      />
+                      <span>{day.short}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
 
             <button

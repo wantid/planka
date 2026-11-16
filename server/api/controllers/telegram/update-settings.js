@@ -27,6 +27,12 @@ module.exports = {
       type: 'string',
       maxLength: 128,
     },
+    notificationDays: {
+      type: 'json',
+      custom: (value) =>
+        Array.isArray(value) &&
+        value.every((day) => Number.isInteger(day) && day >= 1 && day <= 7),
+    },
   },
 
   async fn(inputs) {
@@ -74,6 +80,12 @@ module.exports = {
       }
     }
 
+    if (inputs.notificationDays !== undefined) {
+      updateValues.telegramNotificationDays = [...new Set(inputs.notificationDays)].sort(
+        (a, b) => a - b,
+      );
+    }
+
     if (Object.keys(updateValues).length > 0) {
       await User.updateOne(currentUser.id).set(updateValues);
     }
@@ -84,16 +96,7 @@ module.exports = {
     });
 
     return {
-      item: {
-        isLinked: !!updatedUser.telegramUserId,
-        telegramUsername: updatedUser.telegramUsername,
-        dueDateNotifications: updatedUser.telegramDueDateNotifications !== false,
-        dueDateMutedUntil: updatedUser.telegramDueDateMutedUntil,
-        dailyNotifications: updatedUser.telegramDailyNotifications !== false,
-        dailyMutedUntil: updatedUser.telegramDailyMutedUntil,
-        dailyDigestTime: updatedUser.telegramDailyDigestTime || '09:00',
-        dailyDigestTimezone: updatedUser.telegramDailyDigestTimezone || 'UTC',
-      },
+      item: sails.helpers.telegram.presentSettings(updatedUser),
     };
   },
 };
